@@ -26,22 +26,47 @@ const STATE_COLORS: Record<SourceComparison["state"], string> = {
   "calculation-differs": "bg-red-900 text-red-300 border-red-700",
 };
 
+const LOADING_STEPS = [
+  "Running compliance check…",
+  "Comparing statements against document…",
+  "Running calculations…",
+  "Almost done…",
+];
+
 export default function CheckPage() {
   const [statements, setStatements] = useState<UserStatement[]>(SEEDED_STATEMENTS);
   const [result, setResult] = useState<CompareResponse | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loadingStep, setLoadingStep] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [customInput, setCustomInput] = useState("");
 
   async function runCheck() {
-    setLoading(true);
-    const res = await fetch("/api/statements/compare", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ facts: SEEDED_FACTS, statements }),
-    });
-    const data: CompareResponse = await res.json();
-    setResult(data);
-    setLoading(false);
+    setError(null);
+    setResult(null);
+    setLoadingStep(LOADING_STEPS[0]);
+
+    const stepTimer = window.setInterval(() => {
+      setLoadingStep((prev) => {
+        const idx = LOADING_STEPS.indexOf(prev ?? "");
+        return LOADING_STEPS[Math.min(idx + 1, LOADING_STEPS.length - 1)];
+      });
+    }, 1800);
+
+    try {
+      const res = await fetch("/api/statements/compare", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ facts: SEEDED_FACTS, statements }),
+      });
+      if (!res.ok) throw new Error("Comparison failed. Please try again.");
+      const data: CompareResponse = await res.json();
+      setResult(data);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Something went wrong.");
+    } finally {
+      clearInterval(stepTimer);
+      setLoadingStep(null);
+    }
   }
 
   function addCustomStatement() {
@@ -101,11 +126,24 @@ export default function CheckPage() {
 
         <button
           onClick={runCheck}
-          disabled={loading}
+          disabled={!!loadingStep}
           className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-medium px-5 py-2.5 rounded-lg transition-colors"
         >
-          {loading ? "Comparing statements…" : "Check statements"}
+          {loadingStep ?? "Check statements"}
         </button>
+
+        {loadingStep && (
+          <div className="flex items-center gap-3 text-slate-400 text-sm">
+            <span className="inline-block w-4 h-4 border-2 border-slate-600 border-t-blue-400 rounded-full animate-spin" />
+            {loadingStep}
+          </div>
+        )}
+
+        {error && (
+          <div className="bg-red-950 border border-red-800 rounded-lg p-4">
+            <p className="text-red-300 text-sm">{error}</p>
+          </div>
+        )}
 
         {result?.blocked && (
           <div className="bg-red-950 border border-red-800 rounded-lg p-4 space-y-2">
