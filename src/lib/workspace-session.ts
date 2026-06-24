@@ -41,9 +41,9 @@ export type CaseWorkspace = {
   updatedAt: string;
 };
 
-const POLICY_KEY = "coverpilot_policy_workspace";
-const CHECK_KEY = "coverpilot_check_workspace";
-const CASE_KEY = "coverpilot_case_workspace";
+const POLICY_KEY = "claro_policy_workspace";
+const CHECK_KEY = "claro_check_workspace";
+const CASE_KEY = "claro_case_workspace";
 
 export const DEFAULT_USER_CONTEXT: UserContext = {
   situation: "FA meeting tomorrow",

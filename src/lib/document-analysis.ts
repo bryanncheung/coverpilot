@@ -186,7 +186,7 @@ function buildSections(facts: PolicyFact[]): DocumentAnalysisSection[] {
           ? "This appears to behave like a term-style product: no surrender value is expected by design. The key question is coverage duration, renewability, exclusions, and premium sustainability."
           : breakeven
             ? `The extracted surrender data suggests breakeven ${breakeven.label.toLowerCase()}. Before that point, stopping the policy may return less than premiums paid, depending on the actual surrender table.`
-            : "CoverPilot did not extract enough surrender rows to compute breakeven. This is one of the most important tables to ask the adviser to walk through.",
+            : "Claro did not extract enough surrender rows to compute breakeven. This is one of the most important tables to ask the adviser to walk through.",
       facts: surrenderFacts,
     },
     {

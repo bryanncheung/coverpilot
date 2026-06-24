@@ -10,7 +10,7 @@ export type ExtractionResult = {
   aiError?: string;
 };
 
-const EXTRACT_SYSTEM_PROMPT = `You are CoverPilot's policy document extraction engine for Singapore insurance policy illustrations.
+const EXTRACT_SYSTEM_PROMPT = `You are Claro's policy document extraction engine for Singapore insurance policy illustrations.
 
 Your job is to read raw text from a policy illustration and extract structured facts.
 

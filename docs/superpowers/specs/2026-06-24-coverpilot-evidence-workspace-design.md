@@ -1,26 +1,26 @@
-# CoverPilot Evidence Workspace Design
+# Claro Evidence Workspace Design
 
 Date: 2026-06-24
 
 ## Decision
 
-Build CoverPilot as an evidence workspace, with Case Review as the main hackathon demo flow.
+Build Claro as an evidence workspace, with Case Review as the main hackathon demo flow.
 
 The product should not be a generic chatbot, a static dashboard, or a ClearFA-style one-shot report. It should guide a Singapore consumer through one coherent case: prepare for an insurance / FA conversation by combining policy facts, adviser claims, deterministic calculations, official-source context, and compliance-safe meeting questions.
 
 ## Product Thesis
 
-CoverPilot is Singapore's AI insurance evidence desk. It helps users ask insurance questions, decode policy documents, verify adviser claims, prepare for FA meetings, and keep a reusable case record without giving financial advice.
+Claro is Singapore's AI insurance evidence desk. It helps users ask insurance questions, decode policy documents, verify adviser claims, prepare for FA meetings, and keep a reusable case record without giving financial advice.
 
 The hackathon demo proves the thesis through one case:
 
-> A young Singapore consumer has an FA meeting tomorrow, a proposed policy illustration, and several adviser claims. CoverPilot turns those inputs into a sourced meeting-prep pack.
+> A young Singapore consumer has an FA meeting tomorrow, a proposed policy illustration, and several adviser claims. Claro turns those inputs into a sourced meeting-prep pack.
 
 ## Three Workflow Constraints
 
 ### 1. Copy Top AI / Financial-Advisory Startup Patterns
 
-CoverPilot must feel like a domain workflow system, not an LLM wrapper.
+Claro must feel like a domain workflow system, not an LLM wrapper.
 
 The product copies:
 
@@ -32,7 +32,7 @@ The product copies:
 
 ### 2. Rerun Pre-AI Singapore Insurance Workflows With AI
 
-CoverPilot automates the first-pass labor that previously required static content, comparison portals, or human second opinions.
+Claro automates the first-pass labor that previously required static content, comparison portals, or human second opinions.
 
 The product copies and reruns:
 
@@ -43,7 +43,7 @@ The product copies and reruns:
 
 ### 3. Copy And Contextualize InsureLobang
 
-CoverPilot borrows InsureLobang's broad consumer surface and trust stance:
+Claro borrows InsureLobang's broad consumer surface and trust stance:
 
 - FAQ / Ask.
 - Check Advice / Verify.
@@ -51,7 +51,7 @@ CoverPilot borrows InsureLobang's broad consumer surface and trust stance:
 - Gap Calculator / benchmark discussion.
 - independent, no-commission, official-source framing.
 
-CoverPilot improves on the shape by connecting these jobs into one evidence record rather than separate tools.
+Claro improves on the shape by connecting these jobs into one evidence record rather than separate tools.
 
 ## Core User Flow
 
@@ -77,7 +77,7 @@ CoverPilot improves on the shape by connecting these jobs into one evidence reco
 
 ## Compliance Rules
 
-CoverPilot can:
+Claro can:
 
 - extract policy facts,
 - cite policy clauses,
@@ -87,7 +87,7 @@ CoverPilot can:
 - identify missing information,
 - generate neutral questions for a licensed adviser.
 
-CoverPilot cannot:
+Claro cannot:
 
 - recommend a policy,
 - rank policies,

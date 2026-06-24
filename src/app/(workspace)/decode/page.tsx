@@ -116,7 +116,7 @@ export default function DecodePage() {
       <div className="cp-shell">
         <header className="cp-nav">
           <Link href="/" className="font-display text-2xl font-light">
-            CoverPilot
+            Claro
           </Link>
           <nav className="cp-nav-links">
             <Link href="/check">Check</Link>
@@ -210,7 +210,7 @@ export default function DecodePage() {
             {usedFallback && (
                   <div className="cp-alert">
                     <p>
-                  AI extraction was unavailable, so CoverPilot used a deterministic
+                  AI extraction was unavailable, so Claro used a deterministic
                   parser on your uploaded PDF. Review the extracted facts before
                   relying on them.
                 </p>
@@ -230,7 +230,7 @@ export default function DecodePage() {
                           What this policy illustration is really showing
                         </h2>
                         <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
-                          CoverPilot extracts the document figures, then computes the
+                          Claro extracts the document figures, then computes the
                           mechanics that are hard to see at a glance: premium
                           commitment, distribution cost load, Breakeven, surrender
                           trade-offs, and projected values in today&apos;s dollars.
@@ -336,7 +336,7 @@ export default function DecodePage() {
                 <section className="space-y-3">
                   <div>
                     <p className="cp-source-label">Extracted source facts</p>
-                    <h3 className="text-lg font-medium">Evidence used by CoverPilot</h3>
+                    <h3 className="text-lg font-medium">Evidence used by Claro</h3>
                   </div>
                   {facts.map((fact) => (
                     <div

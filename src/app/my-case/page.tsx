@@ -46,7 +46,7 @@ export default function MyCasePage() {
       <header className="border-b border-[#e5e5e5]">
         <div className="mx-auto flex h-12 max-w-[1240px] items-center justify-between px-5 lg:px-8">
           <Link href="/" className="font-display text-xl font-light">
-            CoverPilot
+            Claro
           </Link>
           <Link href="/check" className="text-sm text-[#777169] hover:text-black">
             Check

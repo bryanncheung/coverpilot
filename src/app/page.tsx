@@ -24,7 +24,7 @@ export default function Home() {
       <div className="flex min-h-[100dvh] flex-col">
         <header className="cp-shell flex h-16 items-center justify-between">
           <Link href="/" className="font-display text-2xl font-light">
-            CoverPilot
+            Claro
           </Link>
           <Link
             href="/my-case"
@@ -69,7 +69,7 @@ export default function Home() {
           </div>
 
           <p className="mt-10 max-w-xl text-sm leading-6 text-[var(--muted)]">
-            CoverPilot helps you read, check, and prepare questions. It does
+            Claro helps you read, check, and prepare questions. It does
             not tell you what to buy, keep, cancel, or switch.
           </p>
         </section>

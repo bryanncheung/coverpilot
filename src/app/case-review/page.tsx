@@ -19,7 +19,7 @@ export default function CaseReviewRedirectPage() {
   return (
     <main className="flex min-h-[100dvh] items-center justify-center bg-[var(--background)] px-6 text-[var(--foreground)]">
       <div className="max-w-md text-center">
-        <p className="cg-kicker">CoverPilot</p>
+        <p className="cg-kicker">Claro</p>
         <h1 className="font-display mt-4 text-4xl font-light">
           Choose one focused flow.
         </h1>

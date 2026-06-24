@@ -1,8 +1,8 @@
-# CoverPilot Final-Day Engineering Plan
+# Claro Final-Day Engineering Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Spend Wednesday 2026-06-24 building the strongest possible technical demo for CoverPilot before submission work begins. Bryan and Janine both work on engineering. Ayman handles FA compliance review and later submission/pitch collateral.
+**Goal:** Spend Wednesday 2026-06-24 building the strongest possible technical demo for Claro before submission work begins. Bryan and Janine both work on engineering. Ayman handles FA compliance review and later submission/pitch collateral.
 
 **Architecture:** Keep the current one-page evidence desk as the main demo shell, but make the underlying product feel deeper than a static landing page. The center of gravity is a shared evidence record powering Ask, Decode, Verify, Review, Prepare, and History, with Verify + Evidence Report as the most complete workflow.
 
@@ -106,7 +106,7 @@ Why this matters: The product should not feel like only hardcoded UI. Even if se
 
 Owner: Janine
 
-Why this matters: Legal safety is part of the product, not just a disclaimer. It also differentiates CoverPilot from a random chatbot.
+Why this matters: Legal safety is part of the product, not just a disclaimer. It also differentiates Claro from a random chatbot.
 
 - [ ] Ensure the page visibly refuses or redirects unsafe requests.
 - [ ] Include examples of unsafe prompts:

@@ -22,9 +22,9 @@ export function checkCompliance(input: string): ComplianceResult {
       return {
         blocked: true,
         reason:
-          "CoverPilot does not make buying, keeping, cancelling, or switching recommendations. This is a regulated financial advisory activity that requires a licensed adviser.",
+          "Claro does not make buying, keeping, cancelling, or switching recommendations. This is a regulated financial advisory activity that requires a licensed adviser.",
         redirect:
-          "CoverPilot can extract facts from your policy document, compare statements against source text, and prepare questions for a licensed adviser. Would you like to do that instead?",
+          "Claro can extract facts from your policy document, compare statements against source text, and prepare questions for a licensed adviser. Would you like to do that instead?",
       };
     }
   }
@@ -32,7 +32,7 @@ export function checkCompliance(input: string): ComplianceResult {
 }
 
 export const COMPLIANCE_NOTICE =
-  "CoverPilot extracts facts, compares statements, and prepares questions. It does not recommend what to buy, keep, cancel, or switch. Consult a licensed financial adviser before making any insurance decisions.";
+  "Claro extracts facts, compares statements, and prepares questions. It does not recommend what to buy, keep, cancel, or switch. Consult a licensed financial adviser before making any insurance decisions.";
 
 // Words that must not appear in generated outputs
 export const UNSAFE_OUTPUT_WORDS = [

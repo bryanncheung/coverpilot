@@ -87,7 +87,7 @@ const PLAIN_ANSWERS: Record<string, string[]> = {
 
 function policyContextSentence(policyFacts: PolicyFact[]) {
   if (policyFacts.length === 0) {
-    return "If you add a policy document, CoverPilot can connect this explanation to your actual figures.";
+    return "If you add a policy document, Claro can connect this explanation to your actual figures.";
   }
   const labels = policyFacts.slice(0, 3).map((fact) => fact.label.toLowerCase());
   return `For your loaded document, the most relevant facts are ${labels.join(", ")}. Use those as anchors when asking your adviser for clarification.`;

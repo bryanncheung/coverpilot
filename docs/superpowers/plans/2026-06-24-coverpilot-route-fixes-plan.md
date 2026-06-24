@@ -1,4 +1,4 @@
-# CoverPilot Route Fixes Implementation Plan
+# Claro Route Fixes Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -6,7 +6,7 @@
 
 **Architecture:** Keep the current three-route front door. Extract shared PDF upload and question-answer presentation logic into small local helpers/components so each route remains focused. Use official/public source snippets for general questions, and policy facts only when the user has explicitly uploaded or selected a document in the current route.
 
-**Tech Stack:** Next.js App Router, React client components, TypeScript, localStorage workspace state, `pdf-parse`, OpenAI chat completions, existing CoverPilot compliance guardrails.
+**Tech Stack:** Next.js App Router, React client components, TypeScript, localStorage workspace state, `pdf-parse`, OpenAI chat completions, existing Claro compliance guardrails.
 
 ## Global Constraints
 
@@ -125,7 +125,7 @@ if (facts.length < 3) {
   return NextResponse.json(
     {
       error:
-        "CoverPilot could read the PDF, but could not extract enough policy facts. Try a clearer policy illustration PDF or use the sample policy for the demo.",
+        "Claro could read the PDF, but could not extract enough policy facts. Try a clearer policy illustration PDF or use the sample policy for the demo.",
     },
     { status: 422 }
   );
@@ -138,7 +138,7 @@ Keep the generic catch for parser/OpenAI failures:
 return NextResponse.json(
   {
     error:
-      "CoverPilot could not finish extracting this PDF. Check that OPENAI_API_KEY is set on Render and that the uploaded file is a text-readable policy illustration.",
+      "Claro could not finish extracting this PDF. Check that OPENAI_API_KEY is set on Render and that the uploaded file is a text-readable policy illustration.",
   },
   { status: 500 }
 );
@@ -257,7 +257,7 @@ Place this before the "What did your adviser say?" panel:
     <div>
       <p className="cp-label">Policy illustration</p>
       <p className="mt-1 text-sm leading-6 text-[var(--muted)]">
-        Attach the document behind the claim so CoverPilot can check policy-specific figures.
+        Attach the document behind the claim so Claro can check policy-specific figures.
       </p>
     </div>
     <label className="secondary-button cursor-pointer">

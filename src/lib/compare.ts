@@ -1,7 +1,7 @@
 import { getOpenAI, OPENAI_MODEL } from "./openai";
 import type { PolicyFact, UserStatement, SourceComparison } from "@/types";
 
-const SYSTEM_PROMPT = `You are CoverPilot's evidence comparison engine for Singapore insurance policy documents.
+const SYSTEM_PROMPT = `You are Claro's evidence comparison engine for Singapore insurance policy documents.
 
 Your job is to compare a statement made in an insurance sales conversation against policy facts extracted from a document and public guidance snippets from MoneySense or LIA Singapore.
 

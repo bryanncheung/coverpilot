@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "CoverPilot — AI Insurance Evidence Desk",
+  title: "Claro — AI Insurance Evidence Desk",
   description:
     "Understand your policy, compare statements, and prepare for your licensed adviser meeting.",
 };

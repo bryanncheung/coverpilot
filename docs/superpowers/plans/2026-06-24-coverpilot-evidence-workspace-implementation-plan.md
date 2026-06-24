@@ -1,8 +1,8 @@
-# CoverPilot Evidence Workspace Implementation Plan
+# Claro Evidence Workspace Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Turn CoverPilot from a polished shell into a working case-review evidence workspace for the hackathon demo.
+**Goal:** Turn Claro from a polished shell into a working case-review evidence workspace for the hackathon demo.
 
 **Architecture:** Reuse the existing Next.js App Router, API routes, policy extraction, claim comparison, calculations, and compliance modules. Add a case workspace data model in session storage, a guided `/case-review` page to orchestrate the workflow, and a `/my-case` page to show persistent evidence state.
 

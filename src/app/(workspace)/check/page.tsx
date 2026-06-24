@@ -198,7 +198,7 @@ export default function CheckPage() {
       <div className="cp-shell">
         <header className="cp-nav">
           <Link href="/" className="font-display text-2xl font-light">
-            CoverPilot
+            Claro
           </Link>
           <nav className="cp-nav-links">
             <Link href="/decode">Decode</Link>
@@ -214,7 +214,7 @@ export default function CheckPage() {
               <h1 className="cp-route-title">Check what my adviser said.</h1>
             </div>
             <p className="cp-route-copy">
-            Paste a claim from WhatsApp, a meeting, or a sales pitch. CoverPilot
+            Paste a claim from WhatsApp, a meeting, or a sales pitch. Claro
             turns it into checkable points and prepares questions for your next
             conversation.
           </p>
@@ -241,7 +241,7 @@ export default function CheckPage() {
                 <div>
                   <p className="cp-label">Policy illustration</p>
                   <p className="mt-1 text-sm leading-6 text-[var(--muted)]">
-                    Attach the document behind the claim so CoverPilot can check
+                    Attach the document behind the claim so Claro can check
                     policy-specific figures.
                   </p>
                 </div>
@@ -261,7 +261,7 @@ export default function CheckPage() {
               {uploadError && <div className="cp-error">{uploadError}</div>}
               {uploadFallback && (
                 <div className="cp-alert">
-                  AI extraction was unavailable, so CoverPilot used a deterministic
+                  AI extraction was unavailable, so Claro used a deterministic
                   parser on your uploaded PDF. Review the extracted facts before
                   running the adviser check.
                 </div>
@@ -315,7 +315,7 @@ export default function CheckPage() {
           {compliance.blocked && (
                 <div className="cp-alert">
                   <p className="font-medium">
-                CoverPilot cannot answer that directly.
+                Claro cannot answer that directly.
               </p>
                   <p className="mt-1">{compliance.reason}</p>
                   <p className="mt-2">{compliance.redirect}</p>
@@ -360,7 +360,7 @@ export default function CheckPage() {
                       {topicForText(s.text).label}
                     </span>
                         <span className="text-[11px] text-[var(--muted)]">
-                      CoverPilot checks this with policy facts and public guidance where available.
+                      Claro checks this with policy facts and public guidance where available.
                     </span>
                   </div>
                 </div>
@@ -398,7 +398,7 @@ export default function CheckPage() {
 
         {result?.blocked && (
               <div className="cp-error space-y-2">
-                <p className="font-semibold">CoverPilot cannot answer this</p>
+                <p className="font-semibold">Claro cannot answer this</p>
                 <p>{result.blockReason}</p>
           </div>
         )}
@@ -481,7 +481,7 @@ export default function CheckPage() {
                 </Link>
               </div>
                   <p className="mt-3 text-xs leading-5 text-[var(--muted)]">
-                CoverPilot helps you prepare questions. It does not decide
+                Claro helps you prepare questions. It does not decide
                 whether to buy, keep, cancel, or switch a product.
               </p>
             </div>

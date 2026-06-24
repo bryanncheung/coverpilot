@@ -114,7 +114,7 @@ export default function PreparePage() {
       <div className="cp-shell">
         <header className="cp-nav">
           <Link href="/" className="font-display text-2xl font-light">
-            CoverPilot
+            Claro
           </Link>
           <nav className="cp-nav-links">
             <Link href="/check">Check</Link>

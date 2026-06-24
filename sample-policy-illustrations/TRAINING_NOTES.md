@@ -1,6 +1,6 @@
 # Training Notes For Policy Illustration Extraction
 
-These local PDFs are reference material for improving CoverPilot's extraction behavior. They are not the public demo sample.
+These local PDFs are reference material for improving Claro's extraction behavior. They are not the public demo sample.
 
 Observed recurring Singapore policy illustration sections:
 

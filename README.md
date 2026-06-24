@@ -1,4 +1,4 @@
-# CoverPilot
+# Claro
 
 Singapore's AI insurance evidence desk. Helps users understand policy documents, compare sales statements against source text, and prepare questions for licensed advisers — without recommending what to buy, keep, cancel, or switch.
 
@@ -46,7 +46,7 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ## Compliance
 
-CoverPilot does not recommend what to buy, keep, cancel, or switch. The Decision Firewall blocks any prompt requesting financial advice.
+Claro does not recommend what to buy, keep, cancel, or switch. The Decision Firewall blocks any prompt requesting financial advice.
 
 ## Deployment
 
@@ -54,7 +54,7 @@ The shared GitHub repo can be deployed on Vercel or Render.
 
 ### Recommended: Vercel
 
-1. Import `AymanAchar/CoverPilot` into Vercel.
+1. Import `AymanAchar/Claro` into Vercel.
 2. Framework preset: `Next.js`.
 3. Build command: `npm run build`.
 4. Install command: `npm install`.

@@ -92,7 +92,7 @@ export default function AskPage() {
       <div className="cp-shell">
         <header className="cp-nav">
           <Link href="/" className="font-display text-2xl font-light">
-            CoverPilot
+            Claro
           </Link>
           <nav className="cp-nav-links">
             <Link href="/check">Check</Link>
@@ -109,7 +109,7 @@ export default function AskPage() {
             </div>
             <p className="cp-route-copy">
             Ask about Singapore insurance or financial-advisory concepts.
-            CoverPilot answers in plain English with public guidance and
+            Claro answers in plain English with public guidance and
             questions you can bring to a licensed adviser.
           </p>
             <div className="cp-empty">
@@ -189,7 +189,7 @@ export default function AskPage() {
 
         {answer?.blocked && (
               <div className="cp-alert space-y-2">
-                <p className="font-semibold">CoverPilot cannot answer that directly</p>
+                <p className="font-semibold">Claro cannot answer that directly</p>
                 <p>{answer.blockReason}</p>
           </div>
         )}
