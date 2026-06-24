@@ -44,10 +44,10 @@ const STATE_LABELS: Record<SourceComparison["state"], string> = {
 };
 
 const STEP_TITLES = [
-  "Intake",
-  "Policy facts",
-  "Claim review",
-  "Meeting pack",
+  "Claim",
+  "Policy",
+  "Evidence",
+  "Questions",
 ] as const;
 
 const ASK_TOPICS: Array<{
@@ -232,10 +232,22 @@ export default function CaseReviewPage() {
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const handledEntryRef = useRef(false);
+  const handledDemoRef = useRef(false);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
       setWorkspace(loadCaseWorkspace() ?? createEmptyCaseWorkspace());
+      if (handledEntryRef.current) return;
+      handledEntryRef.current = true;
+      const params = new URLSearchParams(window.location.search);
+      const mode = params.get("mode");
+      if (params.get("demo") === "seeded") {
+        setActiveStep(0);
+        return;
+      }
+      if (mode === "upload") setActiveStep(1);
+      if (mode === "ask" || mode === "claim") setActiveStep(0);
     }, 0);
     return () => window.clearTimeout(timeoutId);
   }, []);
@@ -383,13 +395,26 @@ export default function CaseReviewPage() {
         ],
       };
       persist(next);
-      setActiveStep(3);
+      setActiveStep(2);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
       setLoading(null);
     }
   }
+
+  useEffect(() => {
+    if (handledDemoRef.current) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("demo") !== "seeded") return;
+    handledDemoRef.current = true;
+    const timeoutId = window.setTimeout(() => {
+      void startSeededDemo();
+    }, 0);
+    return () => window.clearTimeout(timeoutId);
+    // Query-param bootstrapping should run once for the initial route only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function handleFileUpload(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -494,6 +519,7 @@ export default function CaseReviewPage() {
       ],
     }));
     setClaimInput("");
+    setActiveStep(workspace.facts.length > 0 ? 2 : 1);
   }
 
   function removeClaim(id: string) {
@@ -630,9 +656,9 @@ export default function CaseReviewPage() {
       <section className="cg-shell grid gap-8 py-8 lg:grid-cols-[220px_1fr]">
         <aside className="space-y-5 lg:sticky lg:top-6 lg:self-start">
           <div>
-            <p className="cg-kicker">Case ID</p>
+            <p className="cg-kicker">Your check</p>
             <h1 className="font-display mt-1 text-3xl font-light">
-              {workspace.id}
+              Before signing
             </h1>
           </div>
           <nav className="space-y-2">
@@ -661,13 +687,14 @@ export default function CaseReviewPage() {
 
         <div className="space-y-8">
           <section className="pb-2">
-            <p className="cg-kicker">Singapore insurance evidence workflow</p>
+            <p className="cg-kicker">Singapore insurance claim check</p>
             <h2 className="font-display mt-3 max-w-[720px] text-[42px] font-light leading-[1.04] md:text-[56px]">
-              One sourced case before the FA conversation.
+              Paste what your adviser said. CoverPilot checks the evidence.
             </h2>
             <p className="mt-4 max-w-[680px] text-sm leading-6 text-[var(--muted)]">
-              Ask from public sources, decode the PI, verify claims against the
-              extracted facts, then prepare questions for a licensed adviser.
+              Start with the conversation, then add the policy illustration.
+              CoverPilot splits the claim, checks policy facts and public
+              guidance, and prepares questions for a licensed adviser.
             </p>
           </section>
 
@@ -693,6 +720,10 @@ export default function CaseReviewPage() {
               startSeededDemo={() => void startSeededDemo()}
               triggerUpload={() => fileRef.current?.click()}
               startManualFactSheet={startManualFactSheet}
+              claimInput={claimInput}
+              claimWarning={claimWarning}
+              setClaimInput={setClaimInput}
+              addClaim={addClaim}
             />
           )}
 
@@ -721,6 +752,7 @@ export default function CaseReviewPage() {
               runEvidenceReview={() => void runEvidenceReview()}
               generateMeetingPack={() => void generateMeetingPack()}
               reviewSource={workspace.reviewSource}
+              goToPolicy={() => setActiveStep(1)}
             />
           )}
 
@@ -757,6 +789,10 @@ function IntakeStep({
   startSeededDemo,
   triggerUpload,
   startManualFactSheet,
+  claimInput,
+  claimWarning,
+  setClaimInput,
+  addClaim,
 }: {
   workspace: CaseWorkspace;
   updateContext: (key: keyof CaseWorkspace["context"], value: string) => void;
@@ -764,6 +800,10 @@ function IntakeStep({
   startSeededDemo: () => void;
   triggerUpload: () => void;
   startManualFactSheet: () => void;
+  claimInput: string;
+  claimWarning: ReturnType<typeof checkCompliance>;
+  setClaimInput: (value: string) => void;
+  addClaim: () => void;
 }) {
   const [selectedTopic, setSelectedTopic] =
     useState<OfficialSource["topic"]>("distribution-cost");
@@ -780,12 +820,82 @@ function IntakeStep({
 
   return (
     <section className="space-y-7">
+      <div className="grid gap-5 lg:grid-cols-[1fr_0.82fr]">
+        <div className="cg-card p-5">
+          <SectionHeader
+            eyebrow="Start here"
+            title="What did your adviser say?"
+            body="Paste the sentence from WhatsApp, email, a sales deck, or your meeting notes. CoverPilot treats it as a claim to check, not as a request for advice."
+          />
+          <textarea
+            value={claimInput}
+            onChange={(event) => setClaimInput(event.target.value)}
+            placeholder="Example: This whole life plan is flexible, low-cost, and the returns are basically guaranteed."
+            className="mt-5 min-h-28 w-full resize-none border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-base leading-7 outline-none focus:border-[var(--foreground)]"
+          />
+          {claimInput.trim() && (
+            <p
+              className={`mt-2 text-xs leading-5 ${
+                claimWarning.blocked ? "text-red-700" : "text-[var(--muted)]"
+              }`}
+            >
+              {claimWarning.blocked
+                ? claimWarning.redirect
+                : "Allowed: CoverPilot will split this into checkable evidence questions."}
+            </p>
+          )}
+          <div className="mt-5 flex flex-wrap gap-3">
+            <button onClick={addClaim} className="primary-button">
+              Add claim to check
+            </button>
+            <button onClick={startSeededDemo} className="secondary-button">
+              Try full sample review
+            </button>
+          </div>
+        </div>
+
+        <div className="cg-focus-panel p-5">
+          <p className="cg-kicker text-[color-mix(in_oklch,var(--background)_70%,transparent)]">
+            What happens next
+          </p>
+          <div className="mt-5 space-y-4">
+            <EvidenceStep label="Split" body="One sentence becomes smaller claims: cost, flexibility, guarantee, coverage." />
+            <EvidenceStep label="Ground" body="Each claim is checked against policy facts, calculations, or public-source guidance." />
+            <EvidenceStep label="Prepare" body="The output is questions for a licensed adviser, not a buy/sell recommendation." />
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-[1fr_0.86fr]">
+        <ActionPanel
+          title="Add policy evidence"
+          body="If you already have the policy illustration, load it now. If not, you can still start with the claim and use the sample review."
+        >
+          <div className="flex flex-wrap gap-3">
+            <button onClick={loadSample} className="secondary-button">
+              Use sample policy
+            </button>
+            <button onClick={triggerUpload} className="secondary-button">
+              Upload PDF
+            </button>
+            <button onClick={startManualFactSheet} className="secondary-button">
+              Enter facts manually
+            </button>
+          </div>
+        </ActionPanel>
+        <div className="cg-card-muted p-4 text-sm leading-6 text-[var(--muted)]">
+          Independent posture: no commissions, no product ranking, no suitability
+          advice. CoverPilot shows what is sourced and what still needs adviser
+          clarification.
+        </div>
+      </div>
+
       <div className="cg-card p-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <SectionHeader
-            eyebrow="Ask"
-            title="Start with cited public guidance."
-            body="Ask factual questions first. CoverPilot answers only from stored MoneySense and LIA source snippets, then carries the case into the policy illustration."
+            eyebrow="Optional"
+            title="Ask a source-backed insurance question."
+            body="If you are new to insurance, ask a factual question first. CoverPilot answers only from stored MoneySense and LIA source snippets."
           />
           <SourceBadge label="Official-source" />
         </div>
@@ -852,8 +962,8 @@ function IntakeStep({
       <div className="grid gap-6 lg:grid-cols-[1fr_0.86fr]">
       <div className="space-y-5">
         <SectionHeader
-          eyebrow="Intake"
-          title="Start with the actual situation."
+          eyebrow="Context"
+          title="Add the situation if it helps the meeting questions."
           body="Context changes the questions CoverPilot prepares, not the recommendation. This keeps the workflow useful without crossing into financial advice."
         />
         <div className="grid gap-4 sm:grid-cols-2">
@@ -891,39 +1001,6 @@ function IntakeStep({
       </div>
 
       <div className="space-y-4">
-        <div className="cg-focus-panel p-5">
-          <p className="cg-kicker text-[color-mix(in_oklch,var(--background)_70%,transparent)]">
-            Demo route
-          </p>
-          <h3 className="font-display mt-3 text-3xl font-light leading-tight">
-            Generate the full case file.
-          </h3>
-          <p className="mt-3 text-sm leading-6 text-[color-mix(in_oklch,var(--background)_75%,transparent)]">
-            Start with the seeded PI, adviser claims, deterministic checks, and
-            meeting pack in one flow.
-          </p>
-          <div className="mt-5 flex flex-wrap gap-3">
-            <button onClick={startSeededDemo} className="secondary-button">
-              Start seeded demo
-            </button>
-          </div>
-        </div>
-        <ActionPanel
-          title="Load policy evidence"
-          body="Upload a PDF or enter PI facts manually; CoverPilot stores extracted facts only."
-        >
-          <div className="flex flex-wrap gap-3">
-            <button onClick={loadSample} className="secondary-button">
-              Use sample policy
-            </button>
-            <button onClick={triggerUpload} className="secondary-button">
-              Upload PDF
-            </button>
-            <button onClick={startManualFactSheet} className="secondary-button">
-              Enter facts manually
-            </button>
-          </div>
-        </ActionPanel>
         <div className="cg-card-muted p-4 text-xs leading-5 text-[var(--muted)]">
           Resource discipline: public-source answers cite MoneySense/LIA links;
           policy checks cite extracted PI facts; calculations show formulas and
@@ -944,22 +1021,22 @@ function EvidenceProcessStrip({
 }) {
   const process = [
     {
-      label: "Ask",
-      value: `${OFFICIAL_SOURCES.length} sources`,
-      detail: "MoneySense and LIA context",
+      label: "Claim",
+      value: `${workspace.statements.length} captured`,
+      detail: "What the adviser said",
     },
     {
-      label: "Decode",
+      label: "Policy",
       value: `${workspace.facts.length} facts`,
       detail: workspace.factsSource === "uploaded" ? "Uploaded or manual PI" : "Seeded PI evidence",
     },
     {
-      label: "Verify",
+      label: "Evidence",
       value: `${workspace.comparisons.length} checks`,
-      detail: `${workspace.statements.length} adviser claims`,
+      detail: `${OFFICIAL_SOURCES.length} public-source snippets available`,
     },
     {
-      label: "Prepare",
+      label: "Questions",
       value: workspace.report
         ? `${workspace.report.questionsForLicensedAdviser.length} questions`
         : "Not generated",
@@ -991,6 +1068,19 @@ function EvidenceProcessStrip({
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+function EvidenceStep({ label, body }: { label: string; body: string }) {
+  return (
+    <div className="border-t border-[color-mix(in_oklch,var(--background)_30%,transparent)] pt-3">
+      <p className="font-mono text-xs text-[color-mix(in_oklch,var(--background)_58%,transparent)]">
+        {label}
+      </p>
+      <p className="mt-2 text-sm leading-6 text-[color-mix(in_oklch,var(--background)_80%,transparent)]">
+        {body}
+      </p>
     </div>
   );
 }
@@ -1123,6 +1213,7 @@ function ClaimStep({
   runEvidenceReview,
   generateMeetingPack,
   reviewSource,
+  goToPolicy,
 }: {
   workspace: CaseWorkspace;
   claimInput: string;
@@ -1134,7 +1225,10 @@ function ClaimStep({
   runEvidenceReview: () => void;
   generateMeetingPack: () => void;
   reviewSource?: "ai" | "deterministic";
+  goToPolicy: () => void;
 }) {
+  const canRunReview = workspace.facts.length > 0 && workspace.statements.length > 0;
+
   return (
     <section className="space-y-8">
       <SectionHeader
@@ -1206,14 +1300,28 @@ function ClaimStep({
         <div className="space-y-3">
           <div className="flex items-center justify-between gap-4">
             <h3 className="text-sm font-medium">Evidence comparisons</h3>
-            <button onClick={runEvidenceReview} className="primary-button">
-              Run evidence review
-            </button>
+            {canRunReview ? (
+              <button onClick={runEvidenceReview} className="primary-button">
+                Run evidence review
+              </button>
+            ) : workspace.statements.length > 0 ? (
+              <button onClick={goToPolicy} className="secondary-button">
+                Add policy evidence
+              </button>
+            ) : (
+              <button disabled className="secondary-button opacity-50">
+                Add claim first
+              </button>
+            )}
           </div>
           {workspace.comparisons.length === 0 ? (
             <EmptyState
               title="No review generated"
-              body="Run the evidence review to compare claims against extracted policy facts."
+              body={
+                canRunReview
+                  ? "Run the evidence review to compare claims against extracted policy facts."
+                  : "Add one adviser claim and policy evidence before generating a review."
+              }
             />
           ) : (
             <div className="space-y-4">
@@ -1238,7 +1346,8 @@ function ClaimStep({
                   <ComparisonCard
                     key={comparison.statementId}
                     comparison={comparison}
-                    statement={statement?.text ?? "Claim"}
+                    statement={statement}
+                    calculations={workspace.calculations}
                   />
                 );
               })}
@@ -1276,6 +1385,10 @@ function MeetingPackStep({
   copiedReport: boolean;
   copyMeetingPack: () => void;
 }) {
+  const canCreatePack =
+    workspace.comparisons.length > 0 ||
+    (workspace.facts.length > 0 && workspace.statements.length > 0);
+
   return (
     <section className="space-y-8">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -1285,9 +1398,15 @@ function MeetingPackStep({
           body="The output is meant to help a licensed adviser conversation start from the source record."
         />
         <div className="flex flex-wrap gap-3">
-          <button onClick={generateMeetingPack} className="primary-button">
-            Generate meeting pack
-          </button>
+          {canCreatePack ? (
+            <button onClick={generateMeetingPack} className="primary-button">
+              {workspace.report ? "Regenerate meeting pack" : "Create meeting pack"}
+            </button>
+          ) : (
+            <button disabled className="secondary-button opacity-50">
+              Run evidence first
+            </button>
+          )}
           {workspace.report && (
             <>
               <button onClick={copyMeetingPack} className="secondary-button">
@@ -1435,17 +1554,50 @@ function SummaryMetric({ label, value }: { label: string; value: number | string
 function ComparisonCard({
   comparison,
   statement,
+  calculations,
 }: {
   comparison: SourceComparison;
-  statement: string;
+  statement?: UserStatement;
+  calculations: CalculationCard[];
 }) {
+  const relatedCalculations = relatedCalculationsFor(statement, calculations);
+  const statementText = statement?.text ?? "Claim";
+  const splitLabel = statement?.category
+    ? `${statement.category[0].toUpperCase()}${statement.category.slice(1)} check`
+    : "Evidence check";
+
   return (
     <div className="cg-card p-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <p className="text-base leading-7">&ldquo;{statement}&rdquo;</p>
+        <p className="text-base leading-7">&ldquo;{statementText}&rdquo;</p>
         <SourceBadge label={STATE_LABELS[comparison.state]} />
       </div>
-      <p className="mt-4 text-sm leading-6 text-[var(--muted)]">
+
+      <div className="mt-5 grid gap-3 md:grid-cols-4">
+        <ReasoningCell label="1. Split" value={splitLabel} />
+        <ReasoningCell
+          label="2. Policy facts"
+          value={
+            comparison.documentEvidence.length > 0
+              ? `${comparison.documentEvidence.length} source facts`
+              : "No matching fact"
+          }
+        />
+        <ReasoningCell
+          label="3. Maths / guidance"
+          value={
+            relatedCalculations.length > 0
+              ? relatedCalculations.map((item) => item.title).join("; ")
+              : "Public-source context"
+          }
+        />
+        <ReasoningCell
+          label="4. Next step"
+          value="Ask licensed adviser"
+        />
+      </div>
+
+      <p className="mt-4 border-l-2 border-[var(--foreground)] pl-3 text-sm leading-6 text-[var(--muted)]">
         {comparison.explanation}
       </p>
       {comparison.documentEvidence.length > 0 && (
@@ -1476,11 +1628,65 @@ function ComparisonCard({
           ))}
         </div>
       )}
+      {relatedCalculations.length > 0 && (
+        <div className="mt-4 space-y-2">
+          {relatedCalculations.map((calculation) => (
+            <div
+              key={`${comparison.statementId}-${calculation.id}`}
+              className="border border-[var(--line)] bg-[var(--surface)] px-4 py-3"
+            >
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                <p className="text-xs font-medium">{calculation.title}</p>
+                <span className="font-mono text-xs text-[var(--soft)]">
+                  {calculation.result}
+                </span>
+              </div>
+              <p className="mt-2 font-mono text-[11px] leading-5 text-[var(--muted)]">
+                {calculation.formula}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
       <p className="mt-4 border-t border-[var(--line)] pt-3 text-sm leading-6">
         Ask: {comparison.clarificationQuestion}
       </p>
     </div>
   );
+}
+
+function ReasoningCell({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="border border-[var(--line)] bg-[var(--surface-muted)] p-3">
+      <p className="font-mono text-[11px] text-[var(--soft)]">{label}</p>
+      <p className="mt-2 text-xs leading-5 text-[var(--muted)]">{value}</p>
+    </div>
+  );
+}
+
+function relatedCalculationsFor(
+  statement: UserStatement | undefined,
+  calculations: CalculationCard[]
+) {
+  if (!statement) return [];
+  const matchers: Record<UserStatement["category"], RegExp> = {
+    cost: /cost|premium|distribution|charge|fee/i,
+    liquidity: /surrender|cash|break.?even|liquid|access/i,
+    coverage: /coverage|sum assured|death|critical/i,
+    returns: /return|projected|yield|bonus|non-guaranteed/i,
+    guarantee: /guarantee|guaranteed|non-guaranteed/i,
+    exclusion: /exclusion|waiting|claim|condition/i,
+    other: /./,
+  };
+  const matcher = matchers[statement.category];
+  return calculations
+    .filter(
+      (calculation) =>
+        matcher.test(calculation.title) ||
+        matcher.test(calculation.formula) ||
+        matcher.test(calculation.caveat)
+    )
+    .slice(0, 2);
 }
 
 function CalculationGrid({ calculations }: { calculations: CalculationCard[] }) {

@@ -1,25 +1,39 @@
 import Link from "next/link";
 
-const WORKFLOW = [
+const USER_JOBS = [
   {
-    title: "Ask",
-    body: "Public-source questions backed by MoneySense and LIA links.",
-    href: "/case-review",
+    title: "Check what I was told",
+    body: "Paste an adviser claim and see what the policy facts actually support.",
+    href: "/case-review?mode=claim",
   },
   {
-    title: "Decode",
-    body: "Policy illustration facts become editable, cited fields.",
-    href: "/case-review",
+    title: "Understand this policy",
+    body: "Load a policy illustration and turn dense figures into cited facts.",
+    href: "/case-review?mode=upload",
   },
   {
-    title: "Verify",
-    body: "Adviser claims are checked against PI facts and formulas.",
-    href: "/case-review",
+    title: "Prepare questions",
+    body: "Leave with questions for a licensed adviser, not a recommendation.",
+    href: "/case-review?demo=seeded",
+  },
+];
+
+const EVIDENCE_CHAIN = [
+  {
+    label: "Claim",
+    value: "This whole life plan is flexible and low-cost.",
   },
   {
-    title: "Prepare",
-    body: "The meeting pack leaves with questions, not recommendations.",
-    href: "/case-review",
+    label: "Split",
+    value: "Flexibility, cost, and guarantee are checked separately.",
+  },
+  {
+    label: "Evidence",
+    value: "Policy facts, surrender schedule, distribution cost, public guidance.",
+  },
+  {
+    label: "Output",
+    value: "Supported, unclear, calculation differs, or ask your adviser.",
   },
 ];
 
@@ -33,8 +47,8 @@ export default function Home() {
             <span className="font-display text-xl font-light">CoverPilot</span>
           </div>
           <nav className="flex items-center gap-5 text-sm text-[var(--muted)]">
-            <Link href="/case-review" className="hover:text-[var(--foreground)]">
-              Case Review
+            <Link href="/case-review?mode=claim" className="hover:text-[var(--foreground)]">
+              Check Claim
             </Link>
             <Link href="/my-case" className="hover:text-[var(--foreground)]">
               My Case
@@ -43,39 +57,75 @@ export default function Home() {
         </div>
       </header>
 
-      <section className="cg-shell grid gap-10 pb-12 pt-16 lg:grid-cols-[1.1fr_0.9fr] lg:pb-18 lg:pt-20">
+      <section className="cg-shell grid gap-10 pb-12 pt-12 lg:grid-cols-[0.98fr_1.02fr] lg:pb-16 lg:pt-16">
         <div className="max-w-[760px]">
-          <p className="cg-kicker">Singapore insurance evidence workspace</p>
-          <h1 className="font-display mt-5 text-[44px] font-light leading-[1.02] md:text-[76px]">
-            Insurance decisions, rebuilt as evidence.
+          <p className="cg-kicker">Independent Singapore insurance check</p>
+          <h1 className="font-display mt-5 text-[44px] font-light leading-[1.02] md:text-[70px]">
+            Check what your insurance adviser said before you sign.
           </h1>
-          <p className="mt-6 max-w-[620px] text-base leading-7 text-[var(--muted)]">
-            CoverPilot turns public guidance, policy illustrations, adviser
-            claims, and meeting notes into one cited case file for Singapore
-            insurance conversations.
+          <p className="mt-6 max-w-[650px] text-base leading-7 text-[var(--muted)]">
+            Paste the claim, add the policy illustration, and CoverPilot shows
+            what is supported, what is unclear, and what to ask next. No
+            recommendations. No commissions. Just evidence and questions.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <Link href="/case-review" className="primary-button">
-              Start case review
+            <Link href="/case-review?demo=seeded" className="primary-button">
+              Try sample adviser check
             </Link>
-            <Link href="/my-case" className="secondary-button">
-              Open My Case
+            <Link href="/case-review?mode=claim" className="secondary-button">
+              Check my own claim
+            </Link>
+            <Link
+              href="/case-review?mode=upload"
+              className="text-sm leading-10 text-[var(--muted)] underline underline-offset-4 hover:text-[var(--foreground)]"
+            >
+              Upload policy illustration
             </Link>
           </div>
         </div>
 
-        <div className="cg-focus-panel p-5 lg:mt-10">
-          <p className="font-mono text-xs text-[color-mix(in_oklch,var(--background)_70%,transparent)]">
-            CP-SG-EVIDENCE
-          </p>
-          <h2 className="font-display mt-4 text-4xl font-light leading-tight">
-            A first-pass insurance reviewer that refuses to advise.
-          </h2>
-          <div className="mt-8 grid grid-cols-2 gap-3 text-sm">
-            <Metric label="Sources" value="MoneySense / LIA" />
-            <Metric label="Outputs" value="Facts / Claims / Questions" />
-            <Metric label="Guardrail" value="No buy, cancel, switch" />
-            <Metric label="Demo" value="One seeded case" />
+        <div className="cg-card p-4 md:p-5">
+          <div className="grid gap-3 md:grid-cols-[0.9fr_1.1fr]">
+            <div className="border border-[var(--line)] bg-[var(--surface-muted)] p-4">
+              <p className="cg-kicker">Adviser claim</p>
+              <p className="mt-5 text-2xl font-light leading-tight">
+                “This plan is flexible, low-cost, and the returns are basically
+                guaranteed.”
+              </p>
+              <p className="mt-5 text-xs leading-5 text-[var(--muted)]">
+                CoverPilot treats this as several checkable claims instead of
+                answering with a generic paragraph.
+              </p>
+            </div>
+            <div className="cg-focus-panel p-4">
+              <p className="font-mono text-xs text-[color-mix(in_oklch,var(--background)_70%,transparent)]">
+                SAMPLE REVIEW
+              </p>
+              <div className="mt-5 space-y-3">
+                <VerdictRow label="Flexibility" value="Needs evidence" />
+                <VerdictRow label="Low cost" value="Calculation differs" />
+                <VerdictRow label="Guaranteed returns" value="Not found" />
+              </div>
+              <div className="mt-5 border-t border-[color-mix(in_oklch,var(--background)_30%,transparent)] pt-4 text-sm leading-6 text-[color-mix(in_oklch,var(--background)_78%,transparent)]">
+                Ask your adviser to point to the surrender values, distribution
+                cost table, and guaranteed versus non-guaranteed section.
+              </div>
+            </div>
+          </div>
+          <div className="mt-4 grid gap-2 sm:grid-cols-4">
+            {EVIDENCE_CHAIN.map((item, index) => (
+              <div
+                key={item.label}
+                className="border border-[var(--line)] bg-[var(--surface)] p-3"
+              >
+                <p className="font-mono text-xs text-[var(--soft)]">
+                  {String(index + 1).padStart(2, "0")} {item.label}
+                </p>
+                <p className="mt-3 text-xs leading-5 text-[var(--muted)]">
+                  {item.value}
+                </p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -84,17 +134,17 @@ export default function Home() {
         <div className="cg-shell py-10">
           <div className="flex flex-col justify-between gap-5 md:flex-row md:items-end">
             <div>
-              <p className="cg-kicker">Product loop</p>
+              <p className="cg-kicker">What you can do here</p>
               <h2 className="font-display mt-3 text-4xl font-light leading-tight">
-                One guided flow, four insurance jobs.
+                Three simple jobs. One evidence engine underneath.
               </h2>
             </div>
-            <Link href="/case-review" className="secondary-button">
-              Inspect workflow
+            <Link href="/case-review?demo=seeded" className="secondary-button">
+              See full demo
             </Link>
           </div>
           <div className="cg-process-grid mt-8">
-            {WORKFLOW.map((item, index) => (
+            {USER_JOBS.map((item, index) => (
               <Link key={item.title} href={item.href} className="cg-process-card">
                 <span className="cg-process-index">
                   {String(index + 1).padStart(2, "0")}
@@ -114,26 +164,26 @@ export default function Home() {
       <section className="cg-shell py-14">
         <div className="grid gap-8 lg:grid-cols-[0.55fr_1.45fr]">
           <div>
-            <p className="cg-kicker">Copied and contextualized</p>
+            <p className="cg-kicker">Why this is more than a chatbot</p>
             <h2 className="font-display mt-3 text-4xl font-light leading-tight">
-              The references are visible in the product shape.
+              Consumer-simple on top. Startup-grade underneath.
             </h2>
           </div>
           <div className="cg-editorial-rows">
             <ReferenceRow
               index="01"
-              title="Top AI financial workflow"
-              body="FP Alpha and Conquest-style document intelligence: extract structured facts, surface planning evidence, and keep calculations auditable."
+              title="AI advisory workflow"
+              body="FP Alpha, Conquest, Jump, and Zocks show the pattern: turn messy financial documents and conversations into structured, auditable outputs."
             />
             <ReferenceRow
               index="02"
-              title="AI operating layer pattern"
-              body="Legora/Casetext-style trust: not a blank chatbot, but a workspace where every answer has source context and every output leaves a trail."
+              title="Independent insurance trust"
+              body="InsureLobang shows the consumer posture: independent, no commissions, source-backed checks, and simple entry points for confused buyers."
             />
             <ReferenceRow
               index="03"
-              title="InsureLobang consumer surface"
-              body="FAQ, advice checking, policy breakdown, and meeting prep are consolidated into one Singapore insurance case file."
+              title="Singapore safety boundary"
+              body="CoverPilot prepares evidence and questions. It does not tell users what to buy, keep, cancel, switch, or rank."
             />
           </div>
         </div>
@@ -142,13 +192,13 @@ export default function Home() {
   );
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
+function VerdictRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="border-t border-[color-mix(in_oklch,var(--background)_35%,transparent)] pt-3">
-      <p className="text-xs text-[color-mix(in_oklch,var(--background)_60%,transparent)]">
-        {label}
-      </p>
-      <p className="mt-2 text-sm leading-5">{value}</p>
+    <div className="flex items-center justify-between gap-3 border-t border-[color-mix(in_oklch,var(--background)_30%,transparent)] pt-3">
+      <span className="text-sm">{label}</span>
+      <span className="bg-[color-mix(in_oklch,var(--background)_16%,transparent)] px-2 py-1 font-mono text-xs">
+        {value}
+      </span>
     </div>
   );
 }
