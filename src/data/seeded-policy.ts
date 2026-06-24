@@ -44,13 +44,16 @@ export const SEEDED_FACTS: PolicyFact[] = [
   },
   {
     id: "distribution-cost",
-    label: "Distribution Cost (Year 1)",
-    value: 2520,
+    label: "Total Distribution Cost",
+    value: 10800,
     unit: "SGD",
     sourceType: "document-stated",
     page: 5,
+    // TODO(Ayman): confirm against a real Policy Illustration. 15% of total
+    // premiums is a representative figure for a healthy 25-yo par whole-life;
+    // varies person to person (age, health, loadings).
     quote:
-      "Distribution cost in policy year 1: S$2,520 (70% of first year annual premium).",
+      "Total Distribution Cost over the policy: S$10,800 (approx. 15% of total premiums payable).",
   },
   {
     id: "surrender-value-yr5",
