@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { CompareRequest, CompareResponse } from "@/types";
 import { checkCompliance } from "@/lib/compliance";
 import { runCalculations } from "@/lib/calculations";
-import { DEMO_COMPARISONS } from "@/data/demo-evidence";
+import { compareStatementsDeterministically } from "@/lib/deterministic-compare";
 import { applyRateLimit } from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest) {
@@ -40,15 +40,15 @@ export async function POST(req: NextRequest) {
         comparisons: [],
         calculations: [],
         blocked: true,
-        source: "demo-fallback",
+        source: "deterministic",
         blockReason: result.reason,
       };
       return NextResponse.json(response);
     }
   }
 
-  let comparisons = DEMO_COMPARISONS;
-  let source: CompareResponse["source"] = "demo-fallback";
+  let comparisons = compareStatementsDeterministically(statements, facts);
+  let source: CompareResponse["source"] = "deterministic";
   if (process.env.OPENAI_API_KEY) {
     try {
       const { compareStatementWithAI } = await import("@/lib/compare");
@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
       source = "ai";
     } catch (error) {
       console.warn(
-        "AI comparison failed, falling back to seeded demo comparisons",
+        "AI comparison failed, falling back to deterministic evidence comparison",
         error
       );
     }

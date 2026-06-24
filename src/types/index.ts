@@ -10,6 +10,9 @@ export type PolicyFact = {
     | "calculated-from-document"
     | "official-source"
     | "not-found";
+  sourceName?: string;
+  sourceUrl?: string;
+  verifiedOn?: string;
   page?: number;
   quote?: string;
 };
@@ -93,7 +96,7 @@ export type CompareResponse = {
   comparisons: SourceComparison[];
   calculations: CalculationCard[];
   blocked: boolean;
-  source?: "ai" | "demo-fallback";
+  source?: "ai" | "deterministic";
   blockReason?: string;
 };
 

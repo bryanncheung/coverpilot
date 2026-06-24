@@ -85,27 +85,27 @@ export function createEmptyCaseWorkspace(): CaseWorkspace {
   };
 }
 
-function canUseSessionStorage() {
-  return typeof window !== "undefined" && typeof window.sessionStorage !== "undefined";
+function canUseLocalStorage() {
+  return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
 }
 
 export function savePolicyWorkspace(
   facts: PolicyFact[],
   source: PolicyWorkspaceSource
 ) {
-  if (!canUseSessionStorage()) return;
+  if (!canUseLocalStorage()) return;
   const payload: PolicyWorkspace = {
     facts,
     source,
     savedAt: new Date().toISOString(),
   };
-  window.sessionStorage.setItem(POLICY_KEY, JSON.stringify(payload));
-  window.sessionStorage.removeItem(CHECK_KEY);
+  window.localStorage.setItem(POLICY_KEY, JSON.stringify(payload));
+  window.localStorage.removeItem(CHECK_KEY);
 }
 
 export function loadPolicyWorkspace(): PolicyWorkspace | null {
-  if (!canUseSessionStorage()) return null;
-  const raw = window.sessionStorage.getItem(POLICY_KEY);
+  if (!canUseLocalStorage()) return null;
+  const raw = window.localStorage.getItem(POLICY_KEY);
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw) as PolicyWorkspace;
@@ -117,9 +117,9 @@ export function loadPolicyWorkspace(): PolicyWorkspace | null {
 }
 
 export function clearPolicyWorkspace() {
-  if (!canUseSessionStorage()) return;
-  window.sessionStorage.removeItem(POLICY_KEY);
-  window.sessionStorage.removeItem(CHECK_KEY);
+  if (!canUseLocalStorage()) return;
+  window.localStorage.removeItem(POLICY_KEY);
+  window.localStorage.removeItem(CHECK_KEY);
 }
 
 export function saveCheckWorkspace(
@@ -127,19 +127,19 @@ export function saveCheckWorkspace(
   comparisons: SourceComparison[],
   calculations: CalculationCard[]
 ) {
-  if (!canUseSessionStorage()) return;
+  if (!canUseLocalStorage()) return;
   const payload: CheckWorkspace = {
     statements,
     comparisons,
     calculations,
     savedAt: new Date().toISOString(),
   };
-  window.sessionStorage.setItem(CHECK_KEY, JSON.stringify(payload));
+  window.localStorage.setItem(CHECK_KEY, JSON.stringify(payload));
 }
 
 export function loadCheckWorkspace(): CheckWorkspace | null {
-  if (!canUseSessionStorage()) return null;
-  const raw = window.sessionStorage.getItem(CHECK_KEY);
+  if (!canUseLocalStorage()) return null;
+  const raw = window.localStorage.getItem(CHECK_KEY);
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw) as CheckWorkspace;
@@ -157,16 +157,16 @@ export function loadCheckWorkspace(): CheckWorkspace | null {
 }
 
 export function saveCaseWorkspace(workspace: CaseWorkspace) {
-  if (!canUseSessionStorage()) return;
-  window.sessionStorage.setItem(
+  if (!canUseLocalStorage()) return;
+  window.localStorage.setItem(
     CASE_KEY,
     JSON.stringify({ ...workspace, updatedAt: new Date().toISOString() })
   );
 }
 
 export function loadCaseWorkspace(): CaseWorkspace | null {
-  if (!canUseSessionStorage()) return null;
-  const raw = window.sessionStorage.getItem(CASE_KEY);
+  if (!canUseLocalStorage()) return null;
+  const raw = window.localStorage.getItem(CASE_KEY);
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw) as CaseWorkspace;
@@ -189,8 +189,8 @@ export function updateCaseWorkspace(
 }
 
 export function clearCaseWorkspace() {
-  if (!canUseSessionStorage()) return;
-  window.sessionStorage.removeItem(CASE_KEY);
-  window.sessionStorage.removeItem(POLICY_KEY);
-  window.sessionStorage.removeItem(CHECK_KEY);
+  if (!canUseLocalStorage()) return;
+  window.localStorage.removeItem(CASE_KEY);
+  window.localStorage.removeItem(POLICY_KEY);
+  window.localStorage.removeItem(CHECK_KEY);
 }

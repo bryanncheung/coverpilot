@@ -74,6 +74,9 @@ export const OFFICIAL_SOURCE_FACTS: PolicyFact[] = OFFICIAL_SOURCES.map((s) => (
   label: `${s.body} — ${s.topic.replace(/-/g, " ")}`,
   value: s.quote,
   sourceType: "official-source",
+  sourceName: s.body,
+  sourceUrl: s.url,
+  verifiedOn: s.verifiedOn,
   quote: s.quote,
 }));
 

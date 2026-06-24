@@ -76,6 +76,23 @@ const ASK_TOPICS: Array<{
   },
 ];
 
+function buildAskAnswer(question: string, sources: OfficialSource[]) {
+  const lead =
+    sources.length > 0
+      ? sources
+          .slice(0, 2)
+          .map((source) => source.quote)
+          .join(" ")
+      : "Official consumer education sources usually ask consumers to verify policy costs, guaranteed values, surrender values, exclusions, and assumptions before relying on a sales claim.";
+
+  return [
+    `Question: ${question}`,
+    `CoverPilot answer: ${lead}`,
+    `Sources used: ${sources.length > 0 ? sources.map((source) => `${source.body} (${source.url})`).join("; ") : "policy illustration education context"}`,
+    "Use this as meeting preparation only: ask the licensed adviser to point to the exact policy illustration page or official source that supports the claim.",
+  ].join("\n\n");
+}
+
 const MANUAL_FACT_TEMPLATES: Array<{
   id: string;
   label: string;
@@ -196,6 +213,7 @@ export default function CaseReviewPage() {
   const [firewallResult, setFirewallResult] = useState(() =>
     checkCompliance("Should I buy this policy?")
   );
+  const claimWarning = checkCompliance(claimInput);
   const [copiedReport, setCopiedReport] = useState(false);
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -215,7 +233,7 @@ export default function CaseReviewPage() {
 
   function updateWorkspace(updater: (current: CaseWorkspace) => CaseWorkspace) {
     if (!workspace) return;
-    persist(updater(workspace));
+    persist(updater(loadCaseWorkspace() ?? workspace));
   }
 
   function updateContext(key: keyof CaseWorkspace["context"], value: string) {
@@ -225,33 +243,46 @@ export default function CaseReviewPage() {
     }));
   }
 
+  async function extractSeededPolicy() {
+    const res = await fetch("/api/policy/extract", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mode: "seeded" }),
+    });
+    if (!res.ok) {
+      const body = (await res.json().catch(() => null)) as { error?: string } | null;
+      throw new Error(body?.error ?? "Could not load the sample policy.");
+    }
+    const data = (await res.json()) as ExtractResponse & { fallback?: boolean };
+    const source: PolicyWorkspaceSource = data.fallback ? "sample-fallback" : "sample";
+    return { facts: data.facts, source };
+  }
+
   async function loadPolicy(mode: "seeded" | "upload", file?: File) {
     setError(null);
     setLoading(mode === "seeded" ? "Loading sample policy" : "Reading PDF");
     try {
-      let res: Response;
+      let data: ExtractResponse & { fallback?: boolean };
+      let source: PolicyWorkspaceSource;
       if (mode === "seeded") {
-        res = await fetch("/api/policy/extract", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ mode: "seeded" }),
-        });
+        const extracted = await extractSeededPolicy();
+        data = { facts: extracted.facts };
+        source = extracted.source;
       } else {
         const form = new FormData();
         form.append("file", file!);
-        res = await fetch("/api/policy/extract", { method: "POST", body: form });
-      }
+        const res = await fetch("/api/policy/extract", { method: "POST", body: form });
 
-      if (!res.ok) {
-        const body = (await res.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(body?.error ?? "Could not read the policy document.");
+        if (!res.ok) {
+          const body = (await res.json().catch(() => null)) as { error?: string } | null;
+          throw new Error(
+            body?.error ??
+              "Could not read the policy document. Use the sample policy or enter facts manually to continue the demo."
+          );
+        }
+        data = (await res.json()) as ExtractResponse & { fallback?: boolean };
+        source = data.fallback ? "sample-fallback" : "uploaded";
       }
-      const data = (await res.json()) as ExtractResponse & { fallback?: boolean };
-      const source: PolicyWorkspaceSource = data.fallback
-        ? "sample-fallback"
-        : mode === "seeded"
-          ? "sample"
-          : "uploaded";
 
       savePolicyWorkspace(data.facts, source);
       updateWorkspace((current) => ({
@@ -270,6 +301,77 @@ export default function CaseReviewPage() {
         ],
       }));
       setActiveStep(1);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function compareEvidence(
+    facts: PolicyFact[],
+    statements: UserStatement[]
+  ) {
+    const res = await fetch("/api/statements/compare", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ facts, statements }),
+    });
+    if (!res.ok) throw new Error("Evidence review failed.");
+    const data = (await res.json()) as CompareResponse;
+    if (data.blocked) throw new Error(data.blockReason);
+    return data;
+  }
+
+  async function fetchMeetingReport(
+    facts: PolicyFact[],
+    comparisons: SourceComparison[],
+    calculations: CalculationCard[]
+  ) {
+    const res = await fetch("/api/report/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ facts, comparisons, calculations }),
+    });
+    if (!res.ok) throw new Error("Meeting pack generation failed.");
+    const data = (await res.json()) as ReportResponse;
+    return data.report;
+  }
+
+  async function startSeededDemo() {
+    if (!workspace) return;
+    setError(null);
+    setLoading("Starting seeded demo");
+    try {
+      const { facts, source } = await extractSeededPolicy();
+      const statements = SEEDED_STATEMENTS;
+      const evidence = await compareEvidence(facts, statements);
+      const report = await fetchMeetingReport(
+        facts,
+        evidence.comparisons,
+        evidence.calculations
+      );
+      savePolicyWorkspace(facts, source);
+      saveCheckWorkspace(statements, evidence.comparisons, evidence.calculations);
+      const next: CaseWorkspace = {
+        ...workspace,
+        facts,
+        factsSource: source,
+        statements,
+        comparisons: evidence.comparisons,
+        calculations: evidence.calculations,
+        reviewSource: evidence.source,
+        report,
+        events: [
+          ...workspace.events,
+          createCaseEvent(
+            "Seeded demo generated",
+            "Sample policy facts, adviser claims, evidence comparisons, calculations, and meeting pack were prepared."
+          ),
+        ],
+      };
+      persist(next);
+      setActiveStep(3);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
@@ -363,6 +465,11 @@ export default function CaseReviewPage() {
 
   function addClaim() {
     if (!claimInput.trim()) return;
+    const warning = checkCompliance(claimInput);
+    if (warning.blocked) {
+      setError(warning.redirect);
+      return;
+    }
     const statement = newStatement(claimInput.trim());
     updateWorkspace((current) => ({
       ...current,
@@ -402,38 +509,71 @@ export default function CaseReviewPage() {
     setError(null);
     setLoading("Checking claims against policy facts");
     try {
-      const res = await fetch("/api/statements/compare", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          facts: workspace.facts,
-          statements: workspace.statements,
-        }),
-      });
-      if (!res.ok) throw new Error("Evidence review failed.");
-      const data = (await res.json()) as CompareResponse;
-      if (data.blocked) throw new Error(data.blockReason);
+      const data = await compareEvidence(workspace.facts, workspace.statements);
+      const nextComparisons = data.comparisons;
+      const nextCalculations = data.calculations;
 
       saveCheckWorkspace(
         workspace.statements,
-        data.comparisons,
-        data.calculations
+        nextComparisons,
+        nextCalculations
       );
       updateWorkspace((current) => ({
         ...current,
-        comparisons: data.comparisons,
-        calculations: data.calculations,
+        comparisons: nextComparisons,
+        calculations: nextCalculations,
         reviewSource: data.source,
         report: null,
         events: [
           ...current.events,
           createCaseEvent(
             "Evidence review generated",
-            `${data.comparisons.length} claims checked and ${data.calculations.length} calculations produced.`
+            `${nextComparisons.length} claims checked and ${nextCalculations.length} calculations produced.`
           ),
         ],
       }));
       setActiveStep(2);
+      await generateReport(nextComparisons, nextCalculations);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function generateReport(
+    nextComparisons?: SourceComparison[],
+    nextCalculations?: CalculationCard[]
+  ) {
+    if (!workspace) return;
+    const comparisons = nextComparisons ?? workspace.comparisons;
+    const calculations = nextCalculations ?? workspace.calculations;
+    if (comparisons.length === 0 || calculations.length === 0) {
+      return;
+    }
+
+    setError(null);
+    setLoading("Generating meeting-prep pack");
+    try {
+      const report = await fetchMeetingReport(
+        workspace.facts,
+        comparisons,
+        calculations
+      );
+      updateWorkspace((current) => ({
+        ...current,
+        comparisons,
+        calculations,
+        report,
+        events: [
+          ...current.events,
+          createCaseEvent(
+            "Meeting pack prepared",
+            `${report.questionsForLicensedAdviser.length} adviser questions were assembled.`
+          ),
+        ],
+      }));
+      setActiveStep(3);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
@@ -445,44 +585,9 @@ export default function CaseReviewPage() {
     if (!workspace) return;
     if (workspace.comparisons.length === 0) {
       await runEvidenceReview();
-    }
-
-    const latest = loadCaseWorkspace() ?? workspace;
-    if (latest.comparisons.length === 0 || latest.calculations.length === 0) {
       return;
     }
-
-    setError(null);
-    setLoading("Generating meeting-prep pack");
-    try {
-      const res = await fetch("/api/report/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          facts: latest.facts,
-          comparisons: latest.comparisons,
-          calculations: latest.calculations,
-        }),
-      });
-      if (!res.ok) throw new Error("Meeting pack generation failed.");
-      const data = (await res.json()) as ReportResponse;
-      updateWorkspace((current) => ({
-        ...current,
-        report: data.report,
-        events: [
-          ...current.events,
-          createCaseEvent(
-            "Meeting pack prepared",
-            `${data.report.questionsForLicensedAdviser.length} adviser questions were assembled.`
-          ),
-        ],
-      }));
-      setActiveStep(3);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong.");
-    } finally {
-      setLoading(null);
-    }
+    await generateReport();
   }
 
   function testFirewall() {
@@ -523,7 +628,7 @@ export default function CaseReviewPage() {
         </div>
       </header>
 
-      <section className="mx-auto grid max-w-[1240px] gap-8 px-5 py-10 lg:grid-cols-[280px_1fr] lg:px-8">
+      <section className="mx-auto grid max-w-[1240px] gap-8 px-5 py-8 lg:grid-cols-[232px_1fr] lg:px-8">
         <aside className="space-y-5">
           <div>
             <p className="text-sm text-[#777169]">Case ID</p>
@@ -556,16 +661,16 @@ export default function CaseReviewPage() {
         </aside>
 
         <div className="space-y-8">
-          <section className="border-b border-[#e5e5e5] pb-8">
+          <section className="border-b border-[#e5e5e5] pb-6">
             <p className="text-sm text-[#777169]">
               Singapore insurance evidence workflow
             </p>
-            <h2 className="font-display mt-3 max-w-[760px] text-5xl font-light leading-tight">
-              Build one sourced case before the next FA conversation.
+            <h2 className="font-display mt-3 max-w-[720px] text-4xl font-light leading-tight">
+              One sourced case before the next FA conversation.
             </h2>
-            <p className="mt-4 max-w-[680px] text-base leading-7 text-[#777169]">
-              Load a policy, capture what was said, run the evidence engine, and
-              leave with questions for a licensed adviser.
+            <p className="mt-3 max-w-[680px] text-sm leading-6 text-[#777169]">
+              Ask from public sources, decode the PI, verify claims against the
+              extracted facts, then prepare questions for a licensed adviser.
             </p>
           </section>
 
@@ -586,6 +691,7 @@ export default function CaseReviewPage() {
               workspace={workspace}
               updateContext={updateContext}
               loadSample={() => void loadPolicy("seeded")}
+              startSeededDemo={() => void startSeededDemo()}
               triggerUpload={() => fileRef.current?.click()}
               startManualFactSheet={startManualFactSheet}
             />
@@ -608,6 +714,7 @@ export default function CaseReviewPage() {
             <ClaimStep
               workspace={workspace}
               claimInput={claimInput}
+              claimWarning={claimWarning}
               setClaimInput={setClaimInput}
               addClaim={addClaim}
               addSeedClaims={addSeedClaims}
@@ -648,37 +755,50 @@ function IntakeStep({
   workspace,
   updateContext,
   loadSample,
+  startSeededDemo,
   triggerUpload,
   startManualFactSheet,
 }: {
   workspace: CaseWorkspace;
   updateContext: (key: keyof CaseWorkspace["context"], value: string) => void;
   loadSample: () => void;
+  startSeededDemo: () => void;
   triggerUpload: () => void;
   startManualFactSheet: () => void;
 }) {
   const [selectedTopic, setSelectedTopic] =
     useState<OfficialSource["topic"]>("distribution-cost");
+  const [askQuestion, setAskQuestion] = useState(ASK_TOPICS[0].question);
+  const [askAnswer, setAskAnswer] = useState("");
   const selectedSources = OFFICIAL_SOURCES.filter(
     (source) => source.topic === selectedTopic
   );
+  const selectedPreset = ASK_TOPICS.find((topic) => topic.topic === selectedTopic);
+
+  function answerAskQuestion() {
+    setAskAnswer(buildAskAnswer(askQuestion, selectedSources));
+  }
 
   return (
-    <section className="space-y-8">
+    <section className="space-y-7">
       <div className="border border-[#e5e5e5] bg-white p-5">
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <SectionHeader
             eyebrow="Ask"
-            title="Start from official-source context."
-            body="This is the InsureLobang FAQ pattern, grounded in MoneySense and LIA-style source snippets before the user moves into their own document."
+            title="Start with cited public guidance."
+            body="Ask factual questions first. CoverPilot answers only from stored MoneySense and LIA source snippets, then carries the case into the policy illustration."
           />
           <SourceBadge label="Official-source" />
         </div>
-        <div className="mt-6 flex gap-2 overflow-x-auto pb-1">
+        <div className="mt-5 flex gap-2 overflow-x-auto pb-1">
           {ASK_TOPICS.map((topic) => (
             <button
               key={topic.topic}
-              onClick={() => setSelectedTopic(topic.topic)}
+              onClick={() => {
+                setSelectedTopic(topic.topic);
+                setAskQuestion(topic.question);
+                setAskAnswer("");
+              }}
               className={`shrink-0 border px-3 py-2 text-sm transition ${
                 selectedTopic === topic.topic
                   ? "border-black bg-black text-[#fdfcfc]"
@@ -689,43 +809,48 @@ function IntakeStep({
             </button>
           ))}
         </div>
-        <div className="mt-5 grid gap-5 lg:grid-cols-[0.75fr_1.25fr]">
+        <div className="mt-5 grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
           <div>
             <p className="text-sm text-[#777169]">User question</p>
-            <p className="mt-2 text-xl leading-8">
-              {ASK_TOPICS.find((topic) => topic.topic === selectedTopic)?.question}
+            <textarea
+              value={askQuestion}
+              onChange={(event) => setAskQuestion(event.target.value)}
+              className="mt-2 min-h-24 w-full resize-none border border-[#e5e5e5] bg-white px-4 py-3 text-base leading-7 outline-none focus:border-black"
+            />
+            <button onClick={answerAskQuestion} className="primary-button mt-3">
+              Ask source-backed question
+            </button>
+            <p className="mt-3 text-xs leading-5 text-[#777169]">
+              Preset: {selectedPreset?.label}. Answers stay factual and point
+              back to official-source context.
             </p>
           </div>
           <div className="space-y-3">
+            {askAnswer && (
+              <div className="border border-black bg-white p-4 text-sm leading-6 whitespace-pre-line">
+                {askAnswer}
+              </div>
+            )}
             {selectedSources.length > 0 ? (
               selectedSources.map((source) => (
-                <blockquote
-                  key={source.id}
-                  className="border-l border-black bg-[#f5f3f1] px-4 py-3 text-sm leading-6 text-[#777169]"
-                >
-                  <span className="font-medium text-black">{source.body}: </span>
-                  {source.quote}
-                  <span className="mt-2 block font-mono text-xs text-[#a59f97]">
-                    Verified {source.verifiedOn}
-                  </span>
-                </blockquote>
+                <SourceReference key={source.id} source={source} />
               ))
             ) : (
-              <blockquote className="border-l border-black bg-[#f5f3f1] px-4 py-3 text-sm leading-6 text-[#777169]">
-                MoneySense and LIA-style policy illustrations commonly warn
+              <div className="border border-[#e5e5e5] bg-[#f5f3f1] px-4 py-3 text-sm leading-6 text-[#777169]">
+                MoneySense and LIA source entries commonly warn
                 users to check surrender values, distribution cost, guaranteed
                 values, and policy conditions before relying on early-exit or
                 flexibility claims.
                 <span className="mt-2 block font-mono text-xs text-[#a59f97]">
                   Official-source discussion prompt
                 </span>
-              </blockquote>
+              </div>
             )}
           </div>
         </div>
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-[1fr_0.9fr]">
+      <div className="grid gap-6 lg:grid-cols-[1fr_0.86fr]">
       <div className="space-y-5">
         <SectionHeader
           eyebrow="Intake"
@@ -769,10 +894,13 @@ function IntakeStep({
       <div className="space-y-4">
         <ActionPanel
           title="Load policy evidence"
-          body="Use the hackathon sample for a reliable demo, or upload a PDF when the API key is configured. Uploaded PDFs are processed for extraction and are not saved into the workspace; only extracted facts are kept in this browser session."
+          body="For the demo, start with the seeded case. For real usage, upload a PDF or enter PI facts manually; CoverPilot stores extracted facts only."
         >
           <div className="flex flex-wrap gap-3">
-            <button onClick={loadSample} className="primary-button">
+            <button onClick={startSeededDemo} className="primary-button">
+              Start seeded demo
+            </button>
+            <button onClick={loadSample} className="secondary-button">
               Use sample policy
             </button>
             <button onClick={triggerUpload} className="secondary-button">
@@ -783,10 +911,11 @@ function IntakeStep({
             </button>
           </div>
         </ActionPanel>
-        <ActionPanel
-          title="Why this is the wedge"
-          body="This copies the strongest AI startup pattern: automate one high-value first-pass workflow end to end, then expand into the operating layer."
-        />
+        <div className="border border-[#e5e5e5] bg-[#f5f3f1] p-4 text-xs leading-5 text-[#777169]">
+          Resource discipline: public-source answers cite MoneySense/LIA links;
+          policy checks cite extracted PI facts; calculations show formulas and
+          input fields.
+        </div>
       </div>
       </div>
     </section>
@@ -913,6 +1042,7 @@ function FactsStep({
 function ClaimStep({
   workspace,
   claimInput,
+  claimWarning,
   setClaimInput,
   addClaim,
   addSeedClaims,
@@ -923,6 +1053,7 @@ function ClaimStep({
 }: {
   workspace: CaseWorkspace;
   claimInput: string;
+  claimWarning: ReturnType<typeof checkCompliance>;
   setClaimInput: (value: string) => void;
   addClaim: () => void;
   addSeedClaims: () => void;
@@ -940,13 +1071,26 @@ function ClaimStep({
       />
 
       <div className="grid gap-4 lg:grid-cols-[1fr_auto]">
-        <input
-          value={claimInput}
-          onChange={(event) => setClaimInput(event.target.value)}
-          onKeyDown={(event) => event.key === "Enter" && addClaim()}
-          placeholder="Paste an adviser claim, e.g. You can access your money anytime"
-          className="border border-[#e5e5e5] bg-white px-4 py-3 text-sm outline-none focus:border-black"
-        />
+        <div>
+          <input
+            value={claimInput}
+            onChange={(event) => setClaimInput(event.target.value)}
+            onKeyDown={(event) => event.key === "Enter" && addClaim()}
+            placeholder="Paste an adviser claim, e.g. You can access your money anytime"
+            className="w-full border border-[#e5e5e5] bg-white px-4 py-3 text-sm outline-none focus:border-black"
+          />
+          {claimInput.trim() && (
+            <p
+              className={`mt-2 text-xs leading-5 ${
+                claimWarning.blocked ? "text-red-700" : "text-[#777169]"
+              }`}
+            >
+              {claimWarning.blocked
+                ? claimWarning.redirect
+                : "Allowed: CoverPilot will treat this as a factual claim to check against sources."}
+            </p>
+          )}
+        </div>
         <div className="flex gap-3">
           <button onClick={addClaim} className="secondary-button">
             Add claim
@@ -1198,13 +1342,7 @@ function MeetingReport({
         <h3 className="text-sm font-medium">Official-source context</h3>
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           {OFFICIAL_SOURCES.slice(0, 4).map((source) => (
-            <blockquote
-              key={source.id}
-              className="border-l border-black bg-[#f5f3f1] px-4 py-3 text-xs leading-5 text-[#777169]"
-            >
-              <span className="font-medium text-black">{source.body}: </span>
-              {source.quote}
-            </blockquote>
+            <SourceReference key={source.id} source={source} compact />
           ))}
         </div>
       </div>
@@ -1240,13 +1378,28 @@ function ComparisonCard({
       {comparison.documentEvidence.length > 0 && (
         <div className="mt-4 space-y-2">
           {comparison.documentEvidence.map((fact) => (
-            <blockquote
+            <div
               key={fact.id}
-              className="border-l border-black bg-[#f5f3f1] px-4 py-3 text-xs leading-5 text-[#777169]"
+              className="border border-[#e5e5e5] bg-[#f5f3f1] px-4 py-3 text-xs leading-5 text-[#777169]"
             >
               <span className="font-medium text-black">{fact.label}: </span>
               {fact.quote ?? String(fact.value)}
-            </blockquote>
+              {fact.page && (
+                <span className="mt-2 block font-mono text-[11px] text-[#a59f97]">
+                  PI page {fact.page}
+                </span>
+              )}
+              {fact.sourceUrl && (
+                <a
+                  href={fact.sourceUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-2 block font-mono text-[11px] text-black underline underline-offset-4"
+                >
+                  {fact.sourceName ?? "Source"}
+                </a>
+              )}
+            </div>
           ))}
         </div>
       )}
@@ -1260,13 +1413,29 @@ function ComparisonCard({
 function CalculationGrid({ calculations }: { calculations: CalculationCard[] }) {
   return (
     <section className="space-y-4">
-      <h3 className="text-sm font-medium">Deterministic calculations</h3>
+      <h3 className="text-sm font-medium">PI-backed calculations</h3>
       <div className="grid gap-4 md:grid-cols-2">
         {calculations.map((calculation) => (
           <div key={calculation.id} className="border border-[#e5e5e5] bg-white p-4">
             <SourceBadge label="Calculated" />
             <p className="mt-3 text-sm text-[#777169]">{calculation.title}</p>
             <p className="mt-1 text-xl font-light">{calculation.result}</p>
+            <p className="mt-3 border-t border-[#e5e5e5] pt-3 font-mono text-[11px] leading-5 text-[#777169]">
+              {calculation.formula}
+            </p>
+            {calculation.inputs.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {calculation.inputs.map((input) => (
+                  <span
+                    key={input.id}
+                    className="border border-[#e5e5e5] bg-[#f5f3f1] px-2 py-1 text-[11px] text-[#777169]"
+                  >
+                    {input.label}: {String(input.value)}
+                    {input.unit ? ` ${input.unit}` : ""}
+                  </span>
+                ))}
+              </div>
+            )}
             <p className="mt-2 text-xs leading-5 text-[#777169]">
               {calculation.caveat}
             </p>
@@ -1274,6 +1443,36 @@ function CalculationGrid({ calculations }: { calculations: CalculationCard[] }) 
         ))}
       </div>
     </section>
+  );
+}
+
+function SourceReference({
+  source,
+  compact = false,
+}: {
+  source: OfficialSource;
+  compact?: boolean;
+}) {
+  return (
+    <div className="border border-[#e5e5e5] bg-[#f5f3f1] px-4 py-3 text-sm leading-6 text-[#777169]">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="font-medium text-black">{source.body}</span>
+        <a
+          href={source.url}
+          target="_blank"
+          rel="noreferrer"
+          className="font-mono text-[11px] text-black underline underline-offset-4"
+        >
+          Source
+        </a>
+      </div>
+      <p className={compact ? "mt-2 text-xs leading-5" : "mt-2"}>
+        {source.quote}
+      </p>
+      <span className="mt-2 block font-mono text-[11px] text-[#a59f97]">
+        Verified {source.verifiedOn}
+      </span>
+    </div>
   );
 }
 
