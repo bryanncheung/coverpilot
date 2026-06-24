@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type {
   CompareResponse,
   SourceComparison,
@@ -61,7 +61,9 @@ export default function CheckPage() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadFallback, setUploadFallback] = useState(false);
   const [claimInput, setClaimInput] = useState("");
+  const [noFactsCaveat, setNoFactsCaveat] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const statementsRef = useRef<HTMLDivElement>(null);
   const compliance = checkCompliance(claimInput);
 
   async function readUploadError(res: Response) {
@@ -107,12 +109,9 @@ export default function CheckPage() {
       setError("Add at least one checkable point first.");
       return;
     }
-    if (facts.length === 0) {
-      setError("Upload the related policy illustration before running a policy-specific check.");
-      return;
-    }
     setError(null);
     setResult(null);
+    setNoFactsCaveat(facts.length === 0);
     setLoadingStep(LOADING_STEPS[0]);
 
     const stepTimer = window.setInterval(() => {
@@ -192,6 +191,15 @@ export default function CheckPage() {
     setResult(null);
     setError(null);
   }
+
+  useEffect(() => {
+    if (statements.length > 0) {
+      setTimeout(
+        () => statementsRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }),
+        80
+      );
+    }
+  }, [statements.length]);
 
   return (
     <main className="cp-page">
@@ -337,7 +345,7 @@ export default function CheckPage() {
         </div>
 
         {statements.length > 0 && (
-          <div className="space-y-3">
+          <div ref={statementsRef} className="space-y-3">
             <div className="flex items-center justify-between gap-3">
                   <p className="text-sm font-medium">Checkable points</p>
                   <p className="text-xs text-[var(--muted)]">{statements.length} point(s)</p>
@@ -384,9 +392,14 @@ export default function CheckPage() {
         </button>
 
         {loadingStep && (
-              <div className="flex items-center gap-3 text-sm text-[var(--muted)]">
-                <span className="inline-block h-4 w-4 animate-spin rounded-full border border-[var(--line)] border-t-[var(--foreground)]" />
-            {loadingStep}
+          <div className="cp-panel cp-panel-pad">
+            <div className="flex items-center gap-4">
+              <span className="inline-block h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-[var(--line)] border-t-[var(--foreground)]" />
+              <div>
+                <p className="text-sm font-medium">{loadingStep}</p>
+                <p className="mt-0.5 text-xs text-[var(--muted)]">This takes about 10–20 seconds…</p>
+              </div>
+            </div>
           </div>
         )}
 
@@ -405,6 +418,11 @@ export default function CheckPage() {
 
         {result && !result.blocked && (
           <div className="space-y-4">
+            {noFactsCaveat && (
+              <div className="cp-alert">
+                No policy document was loaded — these results use public guidance only. Upload a policy illustration for document-specific checks.
+              </div>
+            )}
             <h2 className="font-semibold text-lg">Statement Comparisons</h2>
             {result.comparisons.map((c) => {
               const stmt = statements.find((s) => s.id === c.statementId);

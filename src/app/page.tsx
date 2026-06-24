@@ -34,8 +34,8 @@ export default function Home() {
           </Link>
         </header>
 
-        <section className="cp-shell grid flex-1 items-center py-10 md:py-16">
-          <div className="grid gap-12 lg:grid-cols-[1fr_0.72fr] lg:items-end">
+        <section className="cp-shell grid flex-1 items-center py-8 md:py-12">
+          <div className="grid gap-8 lg:grid-cols-[1fr_0.72fr] lg:items-end">
             <div>
               <p className="cg-kicker">Singapore financial advice clarity</p>
               <h1 className="font-display mt-6 max-w-4xl text-[52px] font-light leading-[0.94] tracking-[-0.02em] md:text-[88px]">
@@ -68,7 +68,7 @@ export default function Home() {
             </div>
           </div>
 
-          <p className="mt-10 max-w-xl text-sm leading-6 text-[var(--muted)]">
+          <p className="mt-6 max-w-xl text-sm leading-6 text-[var(--muted)]">
             Claro helps you read, check, and prepare questions. It does
             not tell you what to buy, keep, cancel, or switch.
           </p>
