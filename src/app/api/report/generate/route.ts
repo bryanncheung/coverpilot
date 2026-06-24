@@ -1,8 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { ReportRequest, ReportResponse } from "@/types";
 import { COMPLIANCE_NOTICE } from "@/lib/compliance";
+import { applyRateLimit } from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest) {
+  const rateLimited = applyRateLimit(req, {
+    scope: "report-generate",
+    limit: 60,
+    windowMs: 60 * 60 * 1000,
+  });
+  if (rateLimited) return rateLimited;
+
   const body: ReportRequest = await req.json();
   const { facts, comparisons, calculations } = body;
 

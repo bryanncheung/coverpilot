@@ -3,8 +3,16 @@ import type { CompareRequest, CompareResponse } from "@/types";
 import { checkCompliance } from "@/lib/compliance";
 import { runCalculations } from "@/lib/calculations";
 import { DEMO_COMPARISONS } from "@/data/demo-evidence";
+import { applyRateLimit } from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest) {
+  const rateLimited = applyRateLimit(req, {
+    scope: "statement-compare",
+    limit: 40,
+    windowMs: 60 * 60 * 1000,
+  });
+  if (rateLimited) return rateLimited;
+
   let body: CompareRequest;
   try {
     body = await req.json();

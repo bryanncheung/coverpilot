@@ -506,7 +506,7 @@ function IntakeStep({
       <div className="space-y-4">
         <ActionPanel
           title="Load policy evidence"
-          body="Use the hackathon sample for a reliable demo, or upload a PDF when the API key is configured."
+          body="Use the hackathon sample for a reliable demo, or upload a PDF when the API key is configured. Uploaded PDFs are processed for extraction and are not saved into the workspace; only extracted facts are kept in this browser session."
         >
           <div className="flex flex-wrap gap-3">
             <button onClick={loadSample} className="primary-button">
