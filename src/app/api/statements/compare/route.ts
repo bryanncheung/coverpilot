@@ -5,8 +5,24 @@ import { runCalculations } from "@/lib/calculations";
 import { DEMO_COMPARISONS } from "@/data/demo-evidence";
 
 export async function POST(req: NextRequest) {
-  const body: CompareRequest = await req.json();
+  let body: CompareRequest;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json(
+      { error: "Invalid JSON body" },
+      { status: 400 }
+    );
+  }
+
   const { facts, statements } = body;
+
+  if (!Array.isArray(facts) || !Array.isArray(statements)) {
+    return NextResponse.json(
+      { error: "Request must include facts and statements arrays" },
+      { status: 400 }
+    );
+  }
 
   // Compliance firewall — check all statements before any processing
   for (const stmt of statements) {
@@ -16,6 +32,7 @@ export async function POST(req: NextRequest) {
         comparisons: [],
         calculations: [],
         blocked: true,
+        source: "demo-fallback",
         blockReason: result.reason,
       };
       return NextResponse.json(response);
@@ -23,6 +40,7 @@ export async function POST(req: NextRequest) {
   }
 
   let comparisons = DEMO_COMPARISONS;
+  let source: CompareResponse["source"] = "demo-fallback";
   if (process.env.OPENAI_API_KEY) {
     try {
       const { compareStatementWithAI } = await import("@/lib/compare");
@@ -30,6 +48,7 @@ export async function POST(req: NextRequest) {
       comparisons = await Promise.all(
         statements.map((stmt) => compareStatementWithAI(stmt, facts))
       );
+      source = "ai";
     } catch (error) {
       console.warn(
         "AI comparison failed, falling back to seeded demo comparisons",
@@ -44,6 +63,7 @@ export async function POST(req: NextRequest) {
     comparisons,
     calculations,
     blocked: false,
+    source,
   };
   return NextResponse.json(response);
 }

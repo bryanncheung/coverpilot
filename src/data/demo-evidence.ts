@@ -12,6 +12,35 @@ export const DEMO_USER_CONTEXT = {
   goal: "Understand whether the proposed policy and adviser claims need clarification",
 };
 
+export const DEMO_EVIDENCE_RECORD = {
+  id: "CP-SG-2026-042",
+  title: "Whole life policy review before FA follow-up",
+  stage: "Evidence assembled, clarification questions pending",
+  adviserClaim: "This is a low-cost plan and works like a savings plan.",
+  userNeed:
+    "The user wants to know what is stated in the policy illustration before deciding what to ask the licensed adviser.",
+  artefacts: [
+    {
+      label: "Policy illustration",
+      detail: "11 extracted facts, including premium, surrender values, and distribution cost",
+    },
+    {
+      label: "Adviser conversation",
+      detail: "5 claims captured for evidence checking",
+    },
+    {
+      label: "Public guidance",
+      detail: "MoneySense/LIA-style guidance on projections, costs, and policy illustrations",
+    },
+  ],
+  status: [
+    "Policy facts decoded",
+    "Adviser claims reconciled",
+    "Cost/value calculations generated",
+    "Licensed-adviser questions prepared",
+  ],
+};
+
 export const DEMO_ASK = {
   question: "What should I check before signing a whole life policy?",
   answer:
@@ -93,6 +122,33 @@ export const DEMO_PREP_QUESTIONS = [
   ...DEMO_COMPARISONS.map((item) => item.clarificationQuestion),
   "Which required documents should I have before deciding, and what should I read first?",
   "Are there exclusions, waiting periods, or premium-change conditions I should understand before signing?",
+];
+
+export const DEMO_HISTORY = [
+  {
+    time: "09:12",
+    title: "Policy illustration decoded",
+    detail:
+      "Premium term, annual premium, surrender values, sum assured, and distribution cost were added to the evidence record.",
+  },
+  {
+    time: "09:18",
+    title: "Adviser claims captured",
+    detail:
+      "Five claims were logged from the user conversation and prepared for source comparison.",
+  },
+  {
+    time: "09:25",
+    title: "Evidence review generated",
+    detail:
+      "Claims were checked against document facts, calculations, and public-source context.",
+  },
+  {
+    time: "09:31",
+    title: "Meeting pack prepared",
+    detail:
+      "The system produced factual questions for the user's next licensed adviser conversation.",
+  },
 ];
 
 export const DEMO_UNSAFE_PROMPTS = [

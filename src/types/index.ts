@@ -77,6 +77,7 @@ export type CompareResponse = {
   comparisons: SourceComparison[];
   calculations: CalculationCard[];
   blocked: boolean;
+  source?: "ai" | "demo-fallback";
   blockReason?: string;
 };
 

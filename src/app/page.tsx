@@ -6,6 +6,8 @@ import {
   DEMO_ASK,
   DEMO_COMPARISONS,
   DEMO_DISCUSSION_PROMPTS,
+  DEMO_EVIDENCE_RECORD,
+  DEMO_HISTORY,
   DEMO_PREP_QUESTIONS,
   DEMO_UNSAFE_PROMPTS,
   DEMO_USER_CONTEXT,
@@ -14,14 +16,6 @@ import { OFFICIAL_SOURCES } from "@/data/official-sources(actual)";
 import { checkCompliance, COMPLIANCE_NOTICE } from "@/lib/compliance";
 import { runCalculations } from "@/lib/calculations";
 import type { CalculationCard, CompareResponse, SourceComparison } from "@/types";
-
-const STATE_LABELS: Record<SourceComparison["state"], string> = {
-  "matches-document": "Found in document",
-  "partially-matches": "Partially found",
-  "not-found": "Not found in document",
-  "needs-source-reconciliation": "Needs reconciliation",
-  "calculation-differs": "Calculation differs",
-};
 
 const STATE_STYLES: Record<SourceComparison["state"], string> = {
   "matches-document": "border-emerald-300 bg-emerald-50 text-emerald-900",
@@ -32,13 +26,39 @@ const STATE_STYLES: Record<SourceComparison["state"], string> = {
 };
 
 const MODULES = [
-  ["Ask", "Official-source answer"],
-  ["Decode", "Policy fact extraction"],
-  ["Verify", "Adviser claim check"],
-  ["Review", "Discussion prompts"],
-  ["Prepare", "Meeting pack"],
-  ["History", "Evidence record"],
+  ["Ask", "Official-source answer", "Adds public context"],
+  ["Decode", "Policy fact extraction", "Adds document facts"],
+  ["Verify", "Adviser claim check", "Reconciles claims"],
+  ["Review", "Discussion prompts", "Adds user context"],
+  ["Prepare", "Meeting pack", "Builds adviser agenda"],
+  ["History", "Evidence record", "Keeps the audit trail"],
 ];
+
+const REVIEW_SOURCE_LABELS: Record<NonNullable<CompareResponse["source"]>, string> = {
+  ai: "Live AI review",
+  "demo-fallback": "Demo evidence fallback",
+};
+
+function reportVerdict(state: SourceComparison["state"]) {
+  if (state === "matches-document") return "Supported by document evidence";
+  if (state === "partially-matches") return "Partially supported";
+  if (state === "calculation-differs") return "Calculation differs";
+  if (state === "needs-source-reconciliation") return "Needs reconciliation";
+  return "Not found in supplied evidence";
+}
+
+function missingEvidenceFor(comparison: SourceComparison) {
+  if (comparison.state === "matches-document") {
+    return "No missing document evidence for this statement in the demo record.";
+  }
+  if (comparison.state === "partially-matches") {
+    return "Timing, conditions, and early-policy value should be clarified before relying on the statement.";
+  }
+  if (comparison.state === "not-found") {
+    return "The current record does not contain a source that supports the statement as phrased.";
+  }
+  return "The claim needs separation between guaranteed figures, projected figures, and public-source context.";
+}
 
 export default function Home() {
   const [comparisons, setComparisons] =
@@ -47,7 +67,8 @@ export default function Home() {
     () => runCalculations(SEEDED_FACTS)
   );
   const [running, setRunning] = useState(false);
-  const [usedFallback, setUsedFallback] = useState(true);
+  const [reviewSource, setReviewSource] =
+    useState<NonNullable<CompareResponse["source"]>>("demo-fallback");
   const [firewallInput, setFirewallInput] = useState(DEMO_UNSAFE_PROMPTS[0]);
   const [firewallResult, setFirewallResult] = useState(
     () => checkCompliance(DEMO_UNSAFE_PROMPTS[0])
@@ -63,7 +84,6 @@ export default function Home() {
 
   async function runEvidenceReview() {
     setRunning(true);
-    setUsedFallback(false);
     const controller = new AbortController();
     const timeoutId = window.setTimeout(() => controller.abort(), 3500);
     try {
@@ -83,8 +103,9 @@ export default function Home() {
       }
       setComparisons(data.comparisons);
       setCalculations(data.calculations);
+      setReviewSource(data.source ?? "demo-fallback");
     } catch {
-      setUsedFallback(true);
+      setReviewSource("demo-fallback");
       setComparisons(DEMO_COMPARISONS);
       setCalculations(runCalculations(SEEDED_FACTS));
     } finally {
@@ -144,7 +165,7 @@ export default function Home() {
           </div>
 
           <EvidenceRecord
-            usedFallback={usedFallback}
+            reviewSource={reviewSource}
             comparisonCount={comparisons.length}
             calculationCount={calculations.length}
             questionCount={openQuestions.length}
@@ -159,7 +180,7 @@ export default function Home() {
               Product surface
             </p>
             <div className="mt-3 space-y-2">
-              {MODULES.map(([name, detail]) => (
+              {MODULES.map(([name, detail, recordAction]) => (
                 <a
                   key={name}
                   href={`#${name.toLowerCase()}`}
@@ -176,6 +197,13 @@ export default function Home() {
                     }`}
                   >
                     {detail}
+                  </span>
+                  <span
+                    className={`mt-1 block text-[11px] ${
+                      name === "Verify" ? "text-slate-300" : "text-slate-400"
+                    }`}
+                  >
+                    {recordAction}
                   </span>
                 </a>
               ))}
@@ -196,7 +224,7 @@ export default function Home() {
             <SectionHeader
               eyebrow="Ask"
               title="Official-source answer before the document work starts."
-              body="This copies InsureLobang's FAQ surface, but keeps the answer tied to the same evidence record used later."
+              body="The user can ask general insurance questions, but every answer is tied back to the same evidence record used later."
             />
             <div className="rounded-md bg-[#f6f3ec] p-4">
               <p className="text-sm font-semibold text-slate-900">
@@ -247,8 +275,14 @@ export default function Home() {
             <SectionHeader
               eyebrow="Verify"
               title="Adviser claims reconciled against policy evidence."
-              body="This is the centerpiece. It copies InsureLobang's Check Advice tool, but grounds the check in document facts, calculations, and official-source context."
+              body="This is the centerpiece: adviser claims are checked against document facts, calculations, and official-source context."
             />
+            <div className="mt-5 grid gap-3 border-y border-slate-200 py-4 md:grid-cols-4">
+              <Metric label="Case" value={DEMO_EVIDENCE_RECORD.id} compact />
+              <Metric label="Review source" value={REVIEW_SOURCE_LABELS[reviewSource]} compact />
+              <Metric label="Claims reviewed" value={comparisons.length} compact />
+              <Metric label="Advice outputs" value="0" compact />
+            </div>
             <div className="mt-5 space-y-4">
               {comparisons.map((comparison) => {
                 const statement = SEEDED_STATEMENTS.find(
@@ -271,27 +305,61 @@ export default function Home() {
                       <span
                         className={`w-fit rounded-full border px-3 py-1 text-xs font-semibold ${STATE_STYLES[comparison.state]}`}
                       >
-                        {STATE_LABELS[comparison.state]}
+                        {reportVerdict(comparison.state)}
                       </span>
                     </div>
-                    <p className="mt-3 text-sm leading-6 text-slate-700">
-                      {comparison.explanation}
-                    </p>
-                    <div className="mt-3 grid gap-3 md:grid-cols-2">
-                      {comparison.documentEvidence.map((evidence) => (
-                        <blockquote
-                          key={evidence.id}
-                          className="rounded-md border-l-4 border-slate-400 bg-white p-3 text-xs leading-5 text-slate-600"
-                        >
-                          {evidence.quote}
-                          {evidence.page ? ` (p.${evidence.page})` : ""}
-                        </blockquote>
-                      ))}
+                    <div className="mt-4 grid gap-3 lg:grid-cols-[0.9fr_1.1fr]">
+                      <div className="space-y-3">
+                        <div className="rounded-md border border-slate-200 bg-white p-3">
+                          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                            Finding
+                          </p>
+                          <p className="mt-2 text-sm leading-6 text-slate-700">
+                            {comparison.explanation}
+                          </p>
+                        </div>
+                        <div className="rounded-md border border-slate-200 bg-white p-3">
+                          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                            Missing or unresolved evidence
+                          </p>
+                          <p className="mt-2 text-sm leading-6 text-slate-700">
+                            {missingEvidenceFor(comparison)}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="space-y-3">
+                        <div className="rounded-md border border-slate-200 bg-white p-3">
+                          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                            Evidence used
+                          </p>
+                          <div className="mt-3 space-y-2">
+                            {comparison.documentEvidence.map((evidence) => (
+                              <blockquote
+                                key={evidence.id}
+                                className="rounded-md border-l-4 border-slate-400 bg-slate-50 p-3 text-xs leading-5 text-slate-600"
+                              >
+                                <span className="font-semibold text-slate-800">
+                                  {evidence.label}:{" "}
+                                </span>
+                                {evidence.quote}
+                                {evidence.page ? ` (p.${evidence.page})` : ""}
+                              </blockquote>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <p className="mt-3 rounded-md bg-slate-950 p-3 text-sm text-white">
-                      Ask your licensed adviser:{" "}
-                      {comparison.clarificationQuestion}
-                    </p>
+                    <div className="mt-3 grid gap-3 md:grid-cols-[1fr_0.8fr]">
+                      <p className="rounded-md bg-slate-950 p-3 text-sm leading-6 text-white">
+                        Ask your licensed adviser:{" "}
+                        {comparison.clarificationQuestion}
+                      </p>
+                      <p className="rounded-md border border-slate-300 bg-white p-3 text-xs leading-5 text-slate-600">
+                        Compliance note: CoverPilot stops at evidence checking
+                        and question preparation. It does not decide whether the
+                        user should buy, keep, cancel, or switch a policy.
+                      </p>
+                    </div>
                   </article>
                 );
               })}
@@ -388,11 +456,31 @@ export default function Home() {
                 title="Evidence record kept together."
                 body="For the hackathon this is local demo state. The startup path is policy vault, annual review, family coverage map, and employer financial wellness."
               />
-              <div className="mt-4 rounded-md bg-[#f6f3ec] p-4 text-sm leading-6 text-slate-700">
-                <p>Policy facts: {SEEDED_FACTS.length}</p>
-                <p>Adviser claims checked: {comparisons.length}</p>
-                <p>Calculations generated: {calculations.length}</p>
-                <p>Open adviser questions: {openQuestions.length}</p>
+              <div className="mt-4 space-y-3">
+                {DEMO_HISTORY.map((entry) => (
+                  <div
+                    key={entry.title}
+                    className="grid gap-3 rounded-md border border-slate-200 bg-[#f6f3ec] p-3 text-sm leading-6 text-slate-700 sm:grid-cols-[56px_1fr]"
+                  >
+                    <span className="font-semibold text-slate-950">
+                      {entry.time}
+                    </span>
+                    <div>
+                      <p className="font-semibold text-slate-950">
+                        {entry.title}
+                      </p>
+                      <p className="text-xs leading-5 text-slate-600">
+                        {entry.detail}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+                <div className="rounded-md border border-slate-200 bg-white p-3 text-sm leading-6 text-slate-700">
+                  <p>Policy facts: {SEEDED_FACTS.length}</p>
+                  <p>Adviser claims checked: {comparisons.length}</p>
+                  <p>Calculations generated: {calculations.length}</p>
+                  <p>Open adviser questions: {openQuestions.length}</p>
+                </div>
               </div>
             </div>
             <Firewall
@@ -461,12 +549,12 @@ function SectionHeader({
 }
 
 function EvidenceRecord({
-  usedFallback,
+  reviewSource,
   comparisonCount,
   calculationCount,
   questionCount,
 }: {
-  usedFallback: boolean;
+  reviewSource: NonNullable<CompareResponse["source"]>;
   comparisonCount: number;
   calculationCount: number;
   questionCount: number;
@@ -476,21 +564,35 @@ function EvidenceRecord({
       <div className="flex items-start justify-between gap-4 border-b border-slate-200 pb-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-            Shared evidence record
+            Shared evidence record {DEMO_EVIDENCE_RECORD.id}
           </p>
           <h2 className="mt-2 text-2xl font-semibold text-slate-950">
-            FA meeting tomorrow
+            {DEMO_EVIDENCE_RECORD.title}
           </h2>
+          <p className="mt-1 text-sm text-slate-600">
+            {DEMO_EVIDENCE_RECORD.stage}
+          </p>
         </div>
         <span
           className={`rounded-full border px-3 py-1 text-xs font-semibold ${
-            usedFallback
+            reviewSource === "demo-fallback"
               ? "border-amber-300 bg-amber-50 text-amber-900"
               : "border-emerald-300 bg-emerald-50 text-emerald-900"
           }`}
         >
-          {usedFallback ? "Demo-safe data" : "Live AI pass"}
+          {REVIEW_SOURCE_LABELS[reviewSource]}
         </span>
+      </div>
+      <div className="mt-4 rounded-md border border-slate-200 bg-[#f6f3ec] p-3">
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+          Claim under review
+        </p>
+        <p className="mt-2 text-sm font-semibold leading-6 text-slate-950">
+          &ldquo;{DEMO_EVIDENCE_RECORD.adviserClaim}&rdquo;
+        </p>
+        <p className="mt-2 text-xs leading-5 text-slate-600">
+          {DEMO_EVIDENCE_RECORD.userNeed}
+        </p>
       </div>
       <dl className="mt-4 grid grid-cols-2 gap-3">
         <Metric label="Policy facts" value={SEEDED_FACTS.length} />
@@ -498,24 +600,54 @@ function EvidenceRecord({
         <Metric label="Calculations" value={calculationCount} />
         <Metric label="Open questions" value={questionCount} />
       </dl>
-      <div className="mt-4 rounded-md bg-[#f6f3ec] p-3 text-sm leading-6 text-slate-700">
+      <div className="mt-4 grid gap-3 md:grid-cols-3">
+        {DEMO_EVIDENCE_RECORD.artefacts.map((artefact) => (
+          <div
+            key={artefact.label}
+            className="rounded-md border border-slate-200 bg-slate-50 p-3"
+          >
+            <p className="text-xs font-semibold text-slate-950">
+              {artefact.label}
+            </p>
+            <p className="mt-1 text-xs leading-5 text-slate-600">
+              {artefact.detail}
+            </p>
+          </div>
+        ))}
+      </div>
+      <div className="mt-4 rounded-md border border-slate-200 bg-white p-3 text-sm leading-6 text-slate-700">
         <p className="font-semibold text-slate-950">
           {DEMO_USER_CONTEXT.goal}
         </p>
-        <p className="mt-1">
-          Every module writes back to this record: official answer, policy
-          facts, claim checks, calculations, and adviser questions.
-        </p>
+        <ul className="mt-2 space-y-1 text-xs text-slate-600">
+          {DEMO_EVIDENCE_RECORD.status.map((item) => (
+            <li key={item}>- {item}</li>
+          ))}
+        </ul>
       </div>
     </div>
   );
 }
 
-function Metric({ label, value }: { label: string; value: number }) {
+function Metric({
+  label,
+  value,
+  compact = false,
+}: {
+  label: string;
+  value: number | string;
+  compact?: boolean;
+}) {
   return (
     <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
       <dt className="text-xs text-slate-500">{label}</dt>
-      <dd className="mt-1 text-2xl font-semibold text-slate-950">{value}</dd>
+      <dd
+        className={`mt-1 font-semibold text-slate-950 ${
+          compact ? "text-sm leading-5" : "text-2xl"
+        }`}
+      >
+        {value}
+      </dd>
     </div>
   );
 }
@@ -575,6 +707,17 @@ function Firewall({
             <p className="font-semibold">Blocked regulated-advice request</p>
             <p className="mt-1">{result.reason}</p>
             <p className="mt-2 text-rose-800">{result.redirect}</p>
+            <div className="mt-3 grid gap-2 text-xs text-rose-800">
+              <p className="rounded-md border border-rose-200 bg-white/70 p-2">
+                Safe action: verify the facts stated in the policy document.
+              </p>
+              <p className="rounded-md border border-rose-200 bg-white/70 p-2">
+                Safe action: prepare questions for a licensed adviser.
+              </p>
+              <p className="rounded-md border border-rose-200 bg-white/70 p-2">
+                Safe action: show what the evidence does and does not support.
+              </p>
+            </div>
           </>
         ) : (
           <p>
