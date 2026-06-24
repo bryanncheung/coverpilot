@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { OFFICIAL_SOURCES, type OfficialSource } from "@/data/official-sources(actual)";
 import { SEEDED_STATEMENTS } from "@/data/seeded-policy";
 import { checkCompliance } from "@/lib/compliance";
 import {
@@ -19,6 +20,7 @@ import type {
   CompareResponse,
   ExtractResponse,
   MeetingPrepReport,
+  PolicyFact,
   ReportResponse,
   SourceComparison,
   UserStatement,
@@ -47,6 +49,53 @@ const STEP_TITLES = [
   "Meeting pack",
 ] as const;
 
+const ASK_TOPICS: Array<{
+  label: string;
+  question: string;
+  topic: OfficialSource["topic"];
+}> = [
+  {
+    label: "Distribution cost",
+    question: "What does distribution cost mean in a policy illustration?",
+    topic: "distribution-cost",
+  },
+  {
+    label: "Guaranteed values",
+    question: "What is the difference between guaranteed and non-guaranteed values?",
+    topic: "guaranteed-vs-non-guaranteed",
+  },
+  {
+    label: "Illustrated rates",
+    question: "Are illustrated rates promises?",
+    topic: "illustrated-rate",
+  },
+  {
+    label: "Early surrender",
+    question: "What should I check if I may surrender early?",
+    topic: "early-surrender",
+  },
+];
+
+const MANUAL_FACT_TEMPLATES: Array<{
+  id: string;
+  label: string;
+  value: string;
+  unit?: string;
+}> = [
+  { id: "product-name", label: "Product / Plan Name", value: "" },
+  { id: "policy-type", label: "Policy Type", value: "" },
+  { id: "annual-premium", label: "Annual Premium", value: "", unit: "SGD/year" },
+  { id: "premium-term", label: "Premium Payment Term", value: "", unit: "years" },
+  { id: "policy-term", label: "Policy Term", value: "", unit: "years" },
+  { id: "sum-assured", label: "Sum Assured / Coverage Amount", value: "", unit: "SGD" },
+  { id: "distribution-cost", label: "Total Distribution Cost", value: "", unit: "SGD" },
+  { id: "surrender-value-yr5", label: "Guaranteed Surrender Value — Year 5", value: "", unit: "SGD" },
+  { id: "surrender-value-yr10", label: "Guaranteed Surrender Value — Year 10", value: "", unit: "SGD" },
+  { id: "surrender-value-yr20", label: "Guaranteed Surrender Value — Year 20", value: "", unit: "SGD" },
+  { id: "projected-surrender-yr20", label: "Projected Non-Guaranteed Value — Year 20", value: "", unit: "SGD" },
+  { id: "non-guaranteed-notice", label: "Guaranteed vs Non-Guaranteed Note", value: "" },
+];
+
 function sourceLabel(value: string) {
   return SOURCE_LABELS[value] ?? value;
 }
@@ -55,8 +104,88 @@ function newStatement(text: string): UserStatement {
   return {
     id: `claim-${Date.now()}-${Math.random().toString(16).slice(2)}`,
     text,
-    category: "other",
+    category: classifyStatement(text),
   };
+}
+
+function classifyStatement(text: string): UserStatement["category"] {
+  const lower = text.toLowerCase();
+  if (/cost|cheap|low|expensive|commission|distribution|fee|charge/.test(lower)) {
+    return "cost";
+  }
+  if (/access|withdraw|liquid|cash out|surrender|anytime/.test(lower)) {
+    return "liquidity";
+  }
+  if (/return|project|interest|investment|savings|grow|yield/.test(lower)) {
+    return "returns";
+  }
+  if (/coverage|cover|protection|sum assured|enough|death|ci|critical/.test(lower)) {
+    return "coverage";
+  }
+  if (/guarantee|guaranteed|sure|promise/.test(lower)) {
+    return "guarantee";
+  }
+  if (/exclude|exclusion|waiting|claim|condition/.test(lower)) {
+    return "exclusion";
+  }
+  return "other";
+}
+
+function createManualFact(template?: (typeof MANUAL_FACT_TEMPLATES)[number]): PolicyFact {
+  const suffix = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  return {
+    id: template?.id ? `${template.id}-${suffix}` : `manual-fact-${suffix}`,
+    label: template?.label ?? "Manual policy fact",
+    value: template?.value ?? "",
+    unit: template?.unit,
+    sourceType: "document-stated",
+    quote: "Manually entered from policy illustration.",
+  };
+}
+
+function formatMeetingPack(workspace: CaseWorkspace): string {
+  const report = workspace.report;
+  if (!report) return "";
+  const statements = new Map(
+    workspace.statements.map((statement) => [statement.id, statement.text])
+  );
+  const lines = [
+    `CoverPilot Meeting-Prep Pack`,
+    `Case: ${workspace.id}`,
+    ``,
+    `Context`,
+    `- Situation: ${workspace.context.situation}`,
+    `- Age: ${workspace.context.age}`,
+    `- Income: ${workspace.context.income}`,
+    `- Dependents: ${workspace.context.dependents}`,
+    `- Current cover: ${workspace.context.currentCover}`,
+    ``,
+    `Policy Facts`,
+    ...report.policySummary.slice(0, 12).map((fact) => {
+      const unit = fact.unit ? ` ${fact.unit}` : "";
+      return `- [${sourceLabel(fact.sourceType)}] ${fact.label}: ${String(fact.value)}${unit}`;
+    }),
+    ``,
+    `Claims Checked`,
+    ...report.comparisons.map((comparison) => {
+      const statement = statements.get(comparison.statementId) ?? "Claim";
+      return `- "${statement}" -> ${STATE_LABELS[comparison.state]}. Ask: ${comparison.clarificationQuestion}`;
+    }),
+    ``,
+    `Calculations`,
+    ...report.calculations.map(
+      (calculation) => `- ${calculation.title}: ${calculation.result}`
+    ),
+    ``,
+    `Questions For Licensed Adviser`,
+    ...report.questionsForLicensedAdviser.map(
+      (question, index) => `${index + 1}. ${question}`
+    ),
+    ``,
+    `Compliance Notice`,
+    report.complianceNotice,
+  ];
+  return lines.join("\n");
 }
 
 export default function CaseReviewPage() {
@@ -67,6 +196,7 @@ export default function CaseReviewPage() {
   const [firewallResult, setFirewallResult] = useState(() =>
     checkCompliance("Should I buy this policy?")
   );
+  const [copiedReport, setCopiedReport] = useState(false);
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -112,7 +242,10 @@ export default function CaseReviewPage() {
         res = await fetch("/api/policy/extract", { method: "POST", body: form });
       }
 
-      if (!res.ok) throw new Error("Could not read the policy document.");
+      if (!res.ok) {
+        const body = (await res.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(body?.error ?? "Could not read the policy document.");
+      }
       const data = (await res.json()) as ExtractResponse & { fallback?: boolean };
       const source: PolicyWorkspaceSource = data.fallback
         ? "sample-fallback"
@@ -160,6 +293,51 @@ export default function CaseReviewPage() {
       facts: current.facts.map((fact) =>
         fact.id === id ? { ...fact, [key]: value } : fact
       ),
+      comparisons: [],
+      calculations: [],
+      report: null,
+    }));
+  }
+
+  function addManualFact(template?: (typeof MANUAL_FACT_TEMPLATES)[number]) {
+    const fact = createManualFact(template);
+    updateWorkspace((current) => ({
+      ...current,
+      facts: [...current.facts, fact],
+      factsSource: current.factsSource,
+      comparisons: [],
+      calculations: [],
+      report: null,
+      events: [
+        ...current.events,
+        createCaseEvent("Manual policy fact added", fact.label),
+      ],
+    }));
+  }
+
+  function startManualFactSheet() {
+    updateWorkspace((current) => ({
+      ...current,
+      facts: MANUAL_FACT_TEMPLATES.map(createManualFact),
+      factsSource: "uploaded",
+      comparisons: [],
+      calculations: [],
+      report: null,
+      events: [
+        ...current.events,
+        createCaseEvent(
+          "Manual fact sheet started",
+          "Core policy fields were added for manual entry from a policy illustration."
+        ),
+      ],
+    }));
+    setActiveStep(1);
+  }
+
+  function removeFact(id: string) {
+    updateWorkspace((current) => ({
+      ...current,
+      facts: current.facts.filter((fact) => fact.id !== id),
       comparisons: [],
       calculations: [],
       report: null,
@@ -310,6 +488,14 @@ export default function CaseReviewPage() {
     setFirewallResult(checkCompliance(firewallInput));
   }
 
+  async function copyMeetingPack() {
+    if (!workspace?.report) return;
+    const text = formatMeetingPack(workspace);
+    await navigator.clipboard.writeText(text);
+    setCopiedReport(true);
+    window.setTimeout(() => setCopiedReport(false), 1800);
+  }
+
   if (!workspace) {
     return (
       <main className="min-h-screen bg-[#fdfcfc] text-black">
@@ -400,6 +586,7 @@ export default function CaseReviewPage() {
               updateContext={updateContext}
               loadSample={() => void loadPolicy("seeded")}
               triggerUpload={() => fileRef.current?.click()}
+              startManualFactSheet={startManualFactSheet}
             />
           )}
 
@@ -407,6 +594,9 @@ export default function CaseReviewPage() {
             <FactsStep
               workspace={workspace}
               updateFact={updateFact}
+              addManualFact={addManualFact}
+              removeFact={removeFact}
+              startManualFactSheet={startManualFactSheet}
               loadSample={() => void loadPolicy("seeded")}
               triggerUpload={() => fileRef.current?.click()}
               next={() => setActiveStep(2)}
@@ -434,6 +624,8 @@ export default function CaseReviewPage() {
               firewallResult={firewallResult}
               setFirewallInput={setFirewallInput}
               testFirewall={testFirewall}
+              copiedReport={copiedReport}
+              copyMeetingPack={() => void copyMeetingPack()}
             />
           )}
         </div>
@@ -455,14 +647,83 @@ function IntakeStep({
   updateContext,
   loadSample,
   triggerUpload,
+  startManualFactSheet,
 }: {
   workspace: CaseWorkspace;
   updateContext: (key: keyof CaseWorkspace["context"], value: string) => void;
   loadSample: () => void;
   triggerUpload: () => void;
+  startManualFactSheet: () => void;
 }) {
+  const [selectedTopic, setSelectedTopic] =
+    useState<OfficialSource["topic"]>("distribution-cost");
+  const selectedSources = OFFICIAL_SOURCES.filter(
+    (source) => source.topic === selectedTopic
+  );
+
   return (
-    <section className="grid gap-8 lg:grid-cols-[1fr_0.9fr]">
+    <section className="space-y-8">
+      <div className="border border-[#e5e5e5] bg-white p-5">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+          <SectionHeader
+            eyebrow="Ask"
+            title="Start from official-source context."
+            body="This is the InsureLobang FAQ pattern, grounded in MoneySense and LIA-style source snippets before the user moves into their own document."
+          />
+          <SourceBadge label="Official-source" />
+        </div>
+        <div className="mt-6 flex gap-2 overflow-x-auto pb-1">
+          {ASK_TOPICS.map((topic) => (
+            <button
+              key={topic.topic}
+              onClick={() => setSelectedTopic(topic.topic)}
+              className={`shrink-0 border px-3 py-2 text-sm transition ${
+                selectedTopic === topic.topic
+                  ? "border-black bg-black text-[#fdfcfc]"
+                  : "border-[#e5e5e5] bg-white text-black hover:bg-[#f5f3f1]"
+              }`}
+            >
+              {topic.label}
+            </button>
+          ))}
+        </div>
+        <div className="mt-5 grid gap-5 lg:grid-cols-[0.75fr_1.25fr]">
+          <div>
+            <p className="text-sm text-[#777169]">User question</p>
+            <p className="mt-2 text-xl leading-8">
+              {ASK_TOPICS.find((topic) => topic.topic === selectedTopic)?.question}
+            </p>
+          </div>
+          <div className="space-y-3">
+            {selectedSources.length > 0 ? (
+              selectedSources.map((source) => (
+                <blockquote
+                  key={source.id}
+                  className="border-l border-black bg-[#f5f3f1] px-4 py-3 text-sm leading-6 text-[#777169]"
+                >
+                  <span className="font-medium text-black">{source.body}: </span>
+                  {source.quote}
+                  <span className="mt-2 block font-mono text-xs text-[#a59f97]">
+                    Verified {source.verifiedOn}
+                  </span>
+                </blockquote>
+              ))
+            ) : (
+              <blockquote className="border-l border-black bg-[#f5f3f1] px-4 py-3 text-sm leading-6 text-[#777169]">
+                MoneySense and LIA-style policy illustrations commonly warn
+                users to check surrender values, distribution cost, guaranteed
+                values, and policy conditions before relying on early-exit or
+                flexibility claims.
+                <span className="mt-2 block font-mono text-xs text-[#a59f97]">
+                  Official-source discussion prompt
+                </span>
+              </blockquote>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-8 lg:grid-cols-[1fr_0.9fr]">
       <div className="space-y-5">
         <SectionHeader
           eyebrow="Intake"
@@ -515,12 +776,16 @@ function IntakeStep({
             <button onClick={triggerUpload} className="secondary-button">
               Upload PDF
             </button>
+            <button onClick={startManualFactSheet} className="secondary-button">
+              Enter facts manually
+            </button>
           </div>
         </ActionPanel>
         <ActionPanel
           title="Why this is the wedge"
           body="This copies the strongest AI startup pattern: automate one high-value first-pass workflow end to end, then expand into the operating layer."
         />
+      </div>
       </div>
     </section>
   );
@@ -529,12 +794,18 @@ function IntakeStep({
 function FactsStep({
   workspace,
   updateFact,
+  addManualFact,
+  removeFact,
+  startManualFactSheet,
   loadSample,
   triggerUpload,
   next,
 }: {
   workspace: CaseWorkspace;
   updateFact: (id: string, key: "label" | "value" | "quote", value: string) => void;
+  addManualFact: (template?: (typeof MANUAL_FACT_TEMPLATES)[number]) => void;
+  removeFact: (id: string) => void;
+  startManualFactSheet: () => void;
   loadSample: () => void;
   triggerUpload: () => void;
   next: () => void;
@@ -554,16 +825,39 @@ function FactsStep({
           <button onClick={triggerUpload} className="secondary-button">
             Upload another PDF
           </button>
+          <button onClick={() => addManualFact()} className="secondary-button">
+            Add fact
+          </button>
         </div>
       </div>
 
       {workspace.facts.length === 0 ? (
-        <EmptyState
-          title="No policy facts loaded"
-          body="Load the sample policy or upload a PDF to create the evidence base."
-        />
+        <div className="space-y-4">
+          <EmptyState
+            title="No policy facts loaded"
+            body="Load the sample policy, upload a PDF, or start with manual fields from a policy illustration."
+          />
+          <button onClick={startManualFactSheet} className="primary-button">
+            Start manual fact sheet
+          </button>
+        </div>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="space-y-5">
+          <div className="border border-[#e5e5e5] bg-white p-4">
+            <p className="text-sm font-medium">Quick add common PI fields</p>
+            <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+              {MANUAL_FACT_TEMPLATES.slice(0, 7).map((template) => (
+                <button
+                  key={template.id}
+                  onClick={() => addManualFact(template)}
+                  className="shrink-0 border border-[#e5e5e5] bg-white px-3 py-2 text-xs text-[#777169] transition hover:bg-[#f5f3f1] hover:text-black"
+                >
+                  {template.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
           {workspace.facts.map((fact) => (
             <div key={fact.id} className="border border-[#e5e5e5] bg-white p-4">
               <div className="flex items-start justify-between gap-4">
@@ -574,7 +868,15 @@ function FactsStep({
                   }
                   className="w-full bg-transparent text-sm font-medium outline-none"
                 />
-                <SourceBadge label={sourceLabel(fact.sourceType)} />
+                <div className="flex shrink-0 items-center gap-2">
+                  <SourceBadge label={sourceLabel(fact.sourceType)} />
+                  <button
+                    onClick={() => removeFact(fact.id)}
+                    className="text-xs text-[#777169] hover:text-black"
+                  >
+                    Remove
+                  </button>
+                </div>
               </div>
               <input
                 value={String(fact.value)}
@@ -593,6 +895,7 @@ function FactsStep({
               />
             </div>
           ))}
+          </div>
         </div>
       )}
 
@@ -727,6 +1030,8 @@ function MeetingPackStep({
   firewallResult,
   setFirewallInput,
   testFirewall,
+  copiedReport,
+  copyMeetingPack,
 }: {
   workspace: CaseWorkspace;
   generateMeetingPack: () => void;
@@ -734,6 +1039,8 @@ function MeetingPackStep({
   firewallResult: ReturnType<typeof checkCompliance>;
   setFirewallInput: (value: string) => void;
   testFirewall: () => void;
+  copiedReport: boolean;
+  copyMeetingPack: () => void;
 }) {
   return (
     <section className="space-y-8">
@@ -743,13 +1050,25 @@ function MeetingPackStep({
           title="Leave with questions, not advice."
           body="The output is meant to help a licensed adviser conversation start from the source record."
         />
-        <button onClick={generateMeetingPack} className="primary-button">
-          Generate meeting pack
-        </button>
+        <div className="flex flex-wrap gap-3">
+          <button onClick={generateMeetingPack} className="primary-button">
+            Generate meeting pack
+          </button>
+          {workspace.report && (
+            <>
+              <button onClick={copyMeetingPack} className="secondary-button">
+                {copiedReport ? "Copied" : "Copy pack"}
+              </button>
+              <button onClick={() => window.print()} className="secondary-button">
+                Print
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       {workspace.report ? (
-        <MeetingReport report={workspace.report} />
+        <MeetingReport workspace={workspace} report={workspace.report} />
       ) : (
         <EmptyState
           title="No meeting pack yet"
@@ -797,9 +1116,38 @@ function MeetingPackStep({
   );
 }
 
-function MeetingReport({ report }: { report: MeetingPrepReport }) {
+function MeetingReport({
+  workspace,
+  report,
+}: {
+  workspace: CaseWorkspace;
+  report: MeetingPrepReport;
+}) {
   return (
-    <div className="grid gap-6 lg:grid-cols-[0.8fr_1.2fr]">
+    <div id="meeting-pack" className="space-y-6">
+      <div className="border border-[#e5e5e5] bg-white p-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <p className="font-mono text-xs text-[#a59f97]">{workspace.id}</p>
+            <h3 className="font-display mt-2 text-3xl font-light">
+              Insurance meeting-prep pack
+            </h3>
+            <p className="mt-3 max-w-[680px] text-sm leading-6 text-[#777169]">
+              This pack summarizes source evidence and questions for a licensed
+              adviser. It does not recommend what to buy, keep, cancel, switch,
+              or rank.
+            </p>
+          </div>
+          <SourceBadge label="Facts and questions only" />
+        </div>
+        <div className="mt-5 grid gap-3 text-sm md:grid-cols-3">
+          <SummaryMetric label="Policy facts" value={report.policySummary.length} />
+          <SummaryMetric label="Claims checked" value={report.comparisons.length} />
+          <SummaryMetric label="Questions" value={report.questionsForLicensedAdviser.length} />
+        </div>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-[0.8fr_1.2fr]">
       <div className="space-y-4">
         <h3 className="text-sm font-medium">Calculation evidence</h3>
         {report.calculations.map((calculation) => (
@@ -827,6 +1175,31 @@ function MeetingReport({ report }: { report: MeetingPrepReport }) {
           {report.complianceNotice}
         </div>
       </div>
+      </div>
+
+      <div className="border border-[#e5e5e5] bg-white p-5">
+        <h3 className="text-sm font-medium">Official-source context</h3>
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          {OFFICIAL_SOURCES.slice(0, 4).map((source) => (
+            <blockquote
+              key={source.id}
+              className="border-l border-black bg-[#f5f3f1] px-4 py-3 text-xs leading-5 text-[#777169]"
+            >
+              <span className="font-medium text-black">{source.body}: </span>
+              {source.quote}
+            </blockquote>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SummaryMetric({ label, value }: { label: string; value: number | string }) {
+  return (
+    <div className="border-t border-[#e5e5e5] pt-3">
+      <p className="text-xs text-[#a59f97]">{label}</p>
+      <p className="mt-1 text-2xl font-light">{value}</p>
     </div>
   );
 }

@@ -65,3 +65,28 @@ body {
 .secondary-button:active {
   transform: translateY(1px);
 }
+
+@media print {
+  body {
+    background: #ffffff;
+  }
+
+  header,
+  aside,
+  nav,
+  button,
+  input,
+  textarea {
+    display: none !important;
+  }
+
+  #meeting-pack {
+    display: block !important;
+  }
+
+  main,
+  section,
+  div {
+    box-shadow: none !important;
+  }
+}
