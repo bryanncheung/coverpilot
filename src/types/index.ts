@@ -85,6 +85,8 @@ export type ExtractRequest = {
 
 export type ExtractResponse = {
   facts: PolicyFact[];
+  fallback?: boolean;
+  extractionSource?: "ai" | "deterministic-fallback" | "sample";
 };
 
 export type CompareRequest = {

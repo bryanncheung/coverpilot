@@ -1,4 +1,4 @@
-import { openai } from "./openai";
+import { getOpenAI, OPENAI_MODEL } from "./openai";
 import type { PolicyFact, UserStatement, SourceComparison } from "@/types";
 
 const SYSTEM_PROMPT = `You are CoverPilot's evidence comparison engine for Singapore insurance policy documents.
@@ -34,6 +34,7 @@ export async function compareStatementWithAI(
   statement: UserStatement,
   facts: PolicyFact[]
 ): Promise<SourceComparison> {
+  const openai = getOpenAI();
   const factsText = facts
     .map(
       (f) =>
@@ -50,7 +51,7 @@ ${factsText}
 Compare the statement against the document facts and return JSON.`;
 
   const response = await openai.chat.completions.create({
-    model: "gpt-4o",
+    model: OPENAI_MODEL,
     response_format: { type: "json_object" },
     messages: [
       { role: "system", content: SYSTEM_PROMPT },

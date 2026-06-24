@@ -8,7 +8,11 @@ import type {
   UserStatement,
 } from "@/types";
 
-export type PolicyWorkspaceSource = "sample" | "uploaded" | "sample-fallback";
+export type PolicyWorkspaceSource =
+  | "sample"
+  | "uploaded"
+  | "uploaded-fallback"
+  | "sample-fallback";
 
 export type PolicyWorkspace = {
   facts: PolicyFact[];

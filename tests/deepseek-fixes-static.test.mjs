@@ -65,3 +65,14 @@ test("decode and check routes expose real policy upload handling", async () => {
   assert.match(checkPage, /policy-specific check/);
   assert.match(extractRoute, /could read the PDF, but could not extract enough policy facts/);
 });
+
+test("policy extraction has deterministic fallback when OpenAI fails", async () => {
+  const extract = await read("src/lib/extract.ts");
+  const extractRoute = await read("src/app/api/policy/extract/route.ts");
+
+  assert.match(extract, /extractFactsDeterministically/);
+  assert.match(extract, /deterministic-fallback/);
+  assert.match(extract, /OPENAI_MODEL/);
+  assert.doesNotMatch(extractRoute, /PDF upload extraction requires OPENAI_API_KEY/);
+  assert.match(extractRoute, /fallback: result\.source === "deterministic-fallback"/);
+});

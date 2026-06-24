@@ -59,6 +59,7 @@ export default function CheckPage() {
   const [error, setError] = useState<string | null>(null);
   const [uploadingPolicy, setUploadingPolicy] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploadFallback, setUploadFallback] = useState(false);
   const [claimInput, setClaimInput] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
   const compliance = checkCompliance(claimInput);
@@ -80,16 +81,18 @@ export default function CheckPage() {
 
     setUploadingPolicy(true);
     setUploadError(null);
+    setUploadFallback(false);
 
     try {
       const form = new FormData();
       form.append("file", file);
       const res = await fetch("/api/policy/extract", { method: "POST", body: form });
       if (!res.ok) throw new Error(await readUploadError(res));
-      const data = (await res.json()) as { facts: PolicyFact[] };
+      const data = (await res.json()) as { facts: PolicyFact[]; fallback?: boolean };
       setFacts(data.facts);
-      setPolicySource("uploaded");
-      savePolicyWorkspace(data.facts, "uploaded");
+      setUploadFallback(!!data.fallback);
+      setPolicySource(data.fallback ? "uploaded-fallback" : "uploaded");
+      savePolicyWorkspace(data.facts, data.fallback ? "uploaded-fallback" : "uploaded");
       setResult(null);
     } catch (e) {
       setUploadError(e instanceof Error ? e.message : "Could not read the policy illustration.");
@@ -256,6 +259,13 @@ export default function CheckPage() {
                   : "No policy illustration attached yet. You can split the adviser claim first, but policy-specific checking needs the PDF."}
               </div>
               {uploadError && <div className="cp-error">{uploadError}</div>}
+              {uploadFallback && (
+                <div className="cp-alert">
+                  AI extraction was unavailable, so CoverPilot used a deterministic
+                  parser on your uploaded PDF. Review the extracted facts before
+                  running the adviser check.
+                </div>
+              )}
             </div>
 
             <div className="cp-action-row">

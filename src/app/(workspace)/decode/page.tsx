@@ -78,7 +78,7 @@ export default function DecodePage() {
       if (!res.ok) throw new Error(await readUploadError(res));
       const data = await res.json();
       const source: PolicyWorkspaceSource = data.fallback
-        ? "sample-fallback"
+        ? "uploaded-fallback"
         : mode === "seeded"
           ? "sample"
           : "uploaded";
@@ -208,7 +208,9 @@ export default function DecodePage() {
             {usedFallback && (
                   <div className="cp-alert">
                     <p>
-                  Could not extract enough data from the uploaded PDF. Showing sample policy instead.
+                  AI extraction was unavailable, so CoverPilot used a deterministic
+                  parser on your uploaded PDF. Review the extracted facts before
+                  relying on them.
                 </p>
               </div>
             )}

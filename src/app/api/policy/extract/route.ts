@@ -15,7 +15,10 @@ export async function POST(req: NextRequest) {
   if (contentType.includes("application/json")) {
     const body = await req.json();
     if (body.mode === "seeded" || body.policyId === SEEDED_POLICY_ID) {
-      const response: ExtractResponse = { facts: SEEDED_FACTS };
+      const response: ExtractResponse = {
+        facts: SEEDED_FACTS,
+        extractionSource: "sample",
+      };
       return NextResponse.json(response);
     }
     return NextResponse.json(
@@ -32,16 +35,6 @@ export async function POST(req: NextRequest) {
       windowMs: 60 * 60 * 1000,
     });
     if (rateLimited) return rateLimited;
-
-    if (!process.env.OPENAI_API_KEY) {
-      return NextResponse.json(
-        {
-          error:
-            "PDF upload extraction requires OPENAI_API_KEY. Use the sample policy or configure the API key.",
-        },
-        { status: 503 }
-      );
-    }
 
     try {
       const form = await req.formData();
@@ -66,9 +59,14 @@ export async function POST(req: NextRequest) {
       }
 
       const { extractFactsFromPDF } = await import("@/lib/extract");
-      const facts = await extractFactsFromPDF(buffer);
+      const result = await extractFactsFromPDF(buffer);
 
-      if (facts.length < 3) {
+      if (result.facts.length < 3) {
+        console.warn("PDF extraction returned too few facts", {
+          source: result.source,
+          textLength: result.textLength,
+          aiError: result.aiError,
+        });
         return NextResponse.json(
           {
             error:
@@ -78,7 +76,18 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      const response: ExtractResponse = { facts };
+      if (result.source === "deterministic-fallback") {
+        console.warn("PDF extraction using deterministic fallback", {
+          textLength: result.textLength,
+          aiError: result.aiError,
+        });
+      }
+
+      const response: ExtractResponse = {
+        facts: result.facts,
+        fallback: result.source === "deterministic-fallback",
+        extractionSource: result.source,
+      };
       return NextResponse.json(response);
     } catch (err) {
       console.error("PDF extraction error:", err);
