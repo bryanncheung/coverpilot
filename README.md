@@ -17,10 +17,9 @@ Open [http://localhost:3000](http://localhost:3000).
 
 | Route | Purpose |
 |---|---|
-| `/` | Home — Decode / Check / Prepare modules |
-| `/decode` | Extract structured facts from a policy document |
-| `/check` | Compare statements against source text |
-| `/prepare` | Generate meeting-prep report and adviser questions |
+| `/` | Home — overview and entry points |
+| `/case-review` | One-page evidence workspace: intake, policy facts, claim review, meeting pack |
+| `/my-case` | Saved session view — policy facts, claims, calculations, and event log |
 
 ## API Endpoints
 
@@ -29,6 +28,21 @@ Open [http://localhost:3000](http://localhost:3000).
 | `POST /api/policy/extract` | Returns policy facts (seeded or PDF) |
 | `POST /api/statements/compare` | AI-powered statement vs document comparison + calculations |
 | `POST /api/report/generate` | Generates full meeting-prep report |
+
+## Fallback Behavior
+
+- `POST /api/statements/compare` checks for `OPENAI_API_KEY` at request time. If absent or if OpenAI errors, it returns seeded demo comparisons and sets `source: "demo-fallback"` in the response.
+- `POST /api/policy/extract` with `{ mode: "seeded" }` always returns the 11-fact demo policy — no API key required.
+- PDF upload (`multipart/form-data`) requires `OPENAI_API_KEY` and returns a clear 503 if missing.
+- The UI badges the review as "Live AI review" or "Demo evidence fallback" based on the `source` field.
+
+## Demo Path (no API key needed)
+
+1. Open `/case-review`.
+2. Click **Use sample policy** — loads 11 seeded Whole Life facts.
+3. Click **Use demo claims** — loads 5 adviser statements.
+4. Click **Run evidence review** — returns seeded comparisons (demo-fallback mode).
+5. Click **Generate meeting pack** — produces structured questions for a licensed adviser.
 
 ## Compliance
 
